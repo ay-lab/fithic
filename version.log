@@ -1,0 +1,17 @@
+
+fithic_1.0.0.tgz - 01/02/2014
+-------------------------------
+Initial release.
+__________________________________________________________________
+
+fithic_1.0.1.tgz - 01/19/2014
+-------------------------------
+Bug fixes/changes:
+1. Output file names are changed to be consistent with README and 
+	header lines are added to each output file.
+2. Power-law fit part is removed from the implementation.
+3. --nobinning option is removed. Now default is using 100 bins.
+4. Fixed the warning from matplotlib.use in --visual mode.
+
+__________________________________________________________________
+
