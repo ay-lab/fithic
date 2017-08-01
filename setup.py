@@ -8,7 +8,7 @@ setup(
     entry_points = {
         "console_scripts": ['fithic = fithic.fithic:main']
         },
-    python_requires = '==2.7',
+    python_requires = '~=2.7',
     author = 'Ferhat Ay',
     author_email = 'ferhatay@lji.org',
     license = 'MIT',
