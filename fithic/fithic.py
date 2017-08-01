@@ -810,6 +810,6 @@ def plot_qvalues(q_values,minFDR,maxFDR,increment,figname):
     return [qvalTicks,significantTicks]
 
 
-if __name__ == "__main__":
-    main()
+#if __name__ == "__main__":
+#    main()
 

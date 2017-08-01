@@ -1,0 +1,5 @@
+*.pyc
+.eggs
+dist
+fithic.egg-info
+

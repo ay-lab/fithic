@@ -4,7 +4,7 @@ set -o nounset
 set -o pipefail
 set -o errexit 
 
-BINDIR=bin
+BINDIR=../bin
 DATADIR=data
 inI=$DATADIR/contactCounts
 inF=$DATADIR/fragmentLists
@@ -25,7 +25,7 @@ noOfPasses=1
 
 for i in Duan_yeast_EcoRI Duan_yeast_HindIII; do
    mkdir -p outputs/$i
-   python $BINDIR/fit-hi-c.py -l "$i" -f $inF/$i.gz -i $inI/$i.gz -L $distLowThres -U $distUpThres -b $noOfBins -p $noOfPasses -o outputs/$i --quiet
+   python ../fithic-runner.py -l "$i" -f $inF/$i.gz -i $inI/$i.gz -L $distLowThres -U $distUpThres -b $noOfBins -p $noOfPasses -o outputs/$i --quiet
 done
 
 #####  Settings for only chromosome 1 of 		#####
@@ -45,22 +45,27 @@ noOfPasses=1
 # without normalization
 for i in Dixon_hESC_HindIII_hg18_combineFrags10_chr1 Dixon_mESC_HindIII_mm9_combineFrags10_chr1; do
    mkdir -p outputs/$i
-   python $BINDIR/fit-hi-c.py -l "$i" -f $inF/$i.gz -i $inI/$i.gz -L $distLowThres -U $distUpThres -b $noOfBins -p $noOfPasses -o outputs/$i --quiet
+   python ../fithic-runner.py -l "$i" -f $inF/$i.gz -i $inI/$i.gz -L $distLowThres -U $distUpThres -b $noOfBins -p $noOfPasses -o outputs/$i --quiet
 done
 
 # without normalization - fixed size windows
 noOfBins=50
 for i in Dixon_hESC_HindIII_hg18_w40000_chr1; do
    mkdir -p outputs/$i
-   python $BINDIR/fit-hi-c.py -l "$i" -f $inF/$i.gz -i $inI/$i.gz -L $distLowThres -U $distUpThres -b $noOfBins -p $noOfPasses -o outputs/$i --quiet
+   python ../fithic-runner.py -l "$i" -f $inF/$i.gz -i $inI/$i.gz -L $distLowThres -U $distUpThres -b $noOfBins -p $noOfPasses -o outputs/$i --quiet
 done
 
 # with normalization - fixed size windows
 noOfBins=50
 for i in Dixon_hESC_HindIII_hg18_w40000_chr1; do
    mkdir -p outputs/$i.afterICE
-   python $BINDIR/fit-hi-c.py -l "$i" -f $inF/$i.gz -i $inI/$i.gz -L $distLowThres -U $distUpThres -b $noOfBins -p $noOfPasses -t $inB/$i.gz -o outputs/$i.afterICE --quiet
+   fithic -l "$i" -f $inF/$i.gz -i $inI/$i.gz -L $distLowThres -U $distUpThres -b $noOfBins -p $noOfPasses -t $inB/$i.gz -o outputs/$i.afterICE --quiet
 done
+
+echo ""
+echo ""
+echo "All tests completed successfully. fithic is up and running!"
+
 
 exit
 
