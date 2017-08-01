@@ -15,3 +15,10 @@ Bug fixes/changes:
 
 __________________________________________________________________
 
+fithic_1.0.2.tgz - 08/01/2017
+-------------------------------
+Changes:
+1. Updated directory structure to be configured for pip
+2. Removed R dependencies
+
+__________________________________________________________________
