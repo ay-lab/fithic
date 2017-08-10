@@ -30,3 +30,8 @@ Changes:
 1. Updated structure of setup.py to allow tests
 2. Included changes to allow conda installation
 __________________________________________________________________
+
+fithic_1.0.5.tgz - 08/09/2017
+-------------------------------
+Changes:
+1. Modified location of tests directory 
