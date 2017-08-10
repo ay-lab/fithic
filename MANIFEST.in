@@ -1,0 +1,7 @@
+#testing scripts
+recursive-include tests/*
+
+include version.log
+include fithic-runner.py
+
+

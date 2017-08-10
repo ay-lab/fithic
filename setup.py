@@ -2,7 +2,7 @@ from setuptools import setup
 
 setup(
     name = "fithic",
-    version = '1.0.2',
+    version = '1.0.4',
     description = 'Hi-C Analysis software created and maintained by the Ay Lab',
     url = 'http://github.com/ay-lab/fithic',
     entry_points = {
@@ -19,6 +19,5 @@ setup(
         'scipy',
         'scikit-learn',
     ],
-    test_suite = "tests",
     zip_safe = False,
   )

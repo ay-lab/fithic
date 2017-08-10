@@ -15,10 +15,18 @@ Bug fixes/changes:
 
 __________________________________________________________________
 
-fithic_1.0.2.tgz - 08/01/2017
+fithic_1.0.3.tgz - 08/01/2017
 -------------------------------
 Changes:
 1. Updated directory structure to be configured for pip
 2. Removed R dependencies
+3. Fixed Python2.7 version requirement
 
+__________________________________________________________________
+
+fithic_1.0.4.tgz - 08/09/2017
+-------------------------------
+Changes:
+1. Updated structure of setup.py to allow tests
+2. Included changes to allow conda installation
 __________________________________________________________________
