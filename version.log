@@ -35,3 +35,18 @@ fithic_1.0.5.tgz - 08/09/2017
 -------------------------------
 Changes:
 1. Modified location of tests directory 
+__________________________________________________________________
+
+fithic_1.0.6.tgz - 10/09/2017
+-------------------------------
+Changes:
+1. Added new option '-x' this allows the user to specify 'intraOnly',
+    'interOnly', or 'allReg' as areas to analyze. Default option
+    is 'intraOnly'
+
+Bug Fixes:
+1. Updated error for Illegal Fragment pairs with better error message 
+2. Added NaN check 
+3. Made the output dir. if user has not already
+
+Sorry this took so long!

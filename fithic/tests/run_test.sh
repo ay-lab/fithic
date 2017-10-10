@@ -24,8 +24,8 @@ mappabilityThres=1
 noOfPasses=1
 
 for i in Duan_yeast_EcoRI Duan_yeast_HindIII; do
-   mkdir -p outputs/$i
-   python ../fithic-runner.py -l "$i" -f $inF/$i.gz -i $inI/$i.gz -L $distLowThres -U $distUpThres -b $noOfBins -p $noOfPasses -o outputs/$i --quiet
+#   mkdir -p outputs/$i
+   python ../../fithic-runner.py -l "$i" -f $inF/$i.gz -i $inI/$i.gz -L $distLowThres -U $distUpThres -b $noOfBins -p $noOfPasses -o outputs/$i --quiet -x allReg
 done
 
 #####  Settings for only chromosome 1 of 		#####
@@ -52,14 +52,14 @@ done
 noOfBins=50
 for i in Dixon_hESC_HindIII_hg18_w40000_chr1; do
    mkdir -p outputs/$i
-   python ../fithic-runner.py -l "$i" -f $inF/$i.gz -i $inI/$i.gz -L $distLowThres -U $distUpThres -b $noOfBins -p $noOfPasses -o outputs/$i --quiet
+   python ../../fithic-runner.py -l "$i" -f $inF/$i.gz -i $inI/$i.gz -L $distLowThres -U $distUpThres -b $noOfBins -p $noOfPasses -o outputs/$i --quiet -x interOnly
 done
 
 # with normalization - fixed size windows
 noOfBins=50
 for i in Dixon_hESC_HindIII_hg18_w40000_chr1; do
    mkdir -p outputs/$i.afterICE
-   fithic -l "$i" -f $inF/$i.gz -i $inI/$i.gz -L $distLowThres -U $distUpThres -b $noOfBins -p $noOfPasses -t $inB/$i.gz -o outputs/$i.afterICE --quiet
+   fithic -l "$i" -f $inF/$i.gz -i $inI/$i.gz -L $distLowThres -U $distUpThres -b $noOfBins -p $noOfPasses -t $inB/$i.gz -o outputs/$i.afterICE --quiet -x intraOnly
 done
 
 echo ""

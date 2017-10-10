@@ -2,7 +2,7 @@ from setuptools import setup
 
 setup(
     name = "fithic",
-    version = '1.0.4',
+    version = '1.0.5',
     description = 'Hi-C Analysis software created and maintained by the Ay Lab',
     url = 'http://github.com/ay-lab/fithic',
     entry_points = {

@@ -70,7 +70,7 @@ toProb=10**5
 overSample=5 # can be changed to have more/less overfitted splines
 ####
 #########################
-versionStr="fit-hi-c version 1.0.1. \nA tool for assigning statistical confidence estimates to intra-chromosomal \ncontact maps produced by genome architecture assays. \n\nReleased on January 19, 2014. \nMethod developed by Ferhat Ay, Timothy Bailey and William Noble. \nImplemented by Ferhat Ay (ferhatay@uw.edu). \n\nCopyright (c), 2012, University of Washington. \nThis software is offered under an MIT license. \nFor details: http://opensource.org/licenses/MIT\n"
+versionStr="fit-hi-c version 1.0.6. \nA tool for assigning statistical confidence estimates to intra-chromosomal \ncontact maps produced by genome architecture assays. \n\nReleased on January 19, 2014. \nMethod developed by Ferhat Ay, Timothy Bailey and William Noble. \nImplemented by Ferhat Ay (ferhatay@uw.edu). \n\nCopyright (c), 2012, University of Washington. \nThis software is offered under an MIT license. \nFor details: http://opensource.org/licenses/MIT\n"
 
 
 def main():
@@ -101,10 +101,13 @@ def main():
                       action="store_true", dest="visual", help="OPTIONAL: use this flag for generating plots. DEFAULT is False.")
     parser.add_option("-q", "--quiet",
                       action="store_false", dest="visual", help="OPTIONAL: use this flag for omitting plots. DEFAULT behavior." )
-    parser.add_option("-V", "--version", action="store_true", dest="version", 
+    parser.add_option("-V", "--version", action="store_true", dest="version",
                       help=versionStr)
+    parser.add_option("-x", "--chromosome_region", dest="chromosome_region", ##NEW NEW NEW
+                      help="OPTIONAL: use this flag to determine which chromosomal regions to study (intraOnly, interOnly, All) \
+                      DEFAULT is intraOnly" )
     parser.set_defaults(visual=False, noOfBins=100, distLowThres=-1, distUpThres=-1, mappabilityThreshold=1,noOfPasses=1,
-    discBinsize=5000,libname="",biasfile='none', version=False)
+    discBinsize=5000,libname="",biasfile='none', version=False, chromosome_region="intraOnly")
     (options, args) = parser.parse_args()
     if len(args) != 0:
         parser.error("incorrect number of arguments")
@@ -138,23 +141,34 @@ def main():
     global libname
     global mappabilityThreshold
     global noOfPasses
-    global useInters
+    global allReg
+    global interOnly
     global discBinsize
     global residualFactor
+    global chromosome_region
     global outdir
-    global visual 
+    global visual
     noOfBins=options.noOfBins # 100 by default 
     distUpThres=options.distUpThres # -1 by default, means no upper bound
     distLowThres=options.distLowThres # -1 by default, means no lower bound
     mappabilityThreshold=options.mappabilityThreshold # 1 by default
     useBinning=True # This is no more an option.
-    useInters=False # This is no more an option.
+    chromosome_region=options.chromosome_region
+    interOnly=False
+    allReg=False
+    if chromosome_region == "All":
+        allReg=True
+    elif chromosome_region == "interOnly":
+        interOnly=True
+
     libname=options.libname
     noOfPasses=options.noOfPasses
     discBinsize=options.discBinsize
-    compareMethods=False # This is no more an option.
-    residualFactor=-1 # This is no more an option.
+    compareMethods=False
+    residualFactor=-1
     outdir=options.outdir
+    if not os.path.exists(outdir):
+        os.makedirs(outdir)
     visual=options.visual
 
     # read the mandatory input files -f and -i
@@ -294,9 +308,14 @@ def fit_Spline(x,y,yerr,infilename,sortedInteractions,biasDic,figname,passNo):
         plt.plot(myUtils.scale_a_list(splineX,toKb), myUtils.scale_a_list(newSplineY,toProb),'g-',label="spline-"+str(passNo),linewidth=2)
         plt.errorbar(myUtils.scale_a_list(x,toKb),myUtils.scale_a_list(y,toProb),myUtils.scale_a_list(yerr,toProb),fmt='r.',label="Mean with std. error",linewidth=2) 
 
-        if useInters:
+        if allReg: #NEW no option to plot intraOnly?
             plt.plot(myUtils.scale_a_list(x,toKb),myUtils.scale_a_list([baselineIntraChrProb for i in x],toProb),'k-',label="Baseline intra-chromosomal")
             plt.plot(myUtils.scale_a_list(x,toKb),myUtils.scale_a_list([baselineIntraChrProb for i in x],toProb),'b-',label="Baseline inter-chromosomal")
+        elif useInters:
+            plt.plot(myUtils.scale_a_list(x,toKb),myUtils.scale_a_list([baselineIntraChrProb for i in x],toProb),'b-',label="Baseline inter-chromosomal")
+        else: #this is new, before it plotted all. what's desired behavior?
+            plt.plot(myUtils.scale_a_list(x,toKb),myUtils.scale_a_list([baselineIntraChrProb for i in x],toProb),'k-',label="Baseline intra-chromosomal")
+
         plt.ylabel('Contact probability (x10$^{-5}$)',fontsize='large')
         plt.xlabel('Genomic distance (kb)',fontsize='large')
         if distLowThres>-1 and distUpThres>-1:
@@ -308,9 +327,16 @@ def fit_Spline(x,y,yerr,infilename,sortedInteractions,biasDic,figname,passNo):
 
         plt.loglog(splineX,newSplineY,'g-')
         plt.errorbar(x, y, yerr=yerr, fmt='r.') # Data
-        if useInters:
+        if allReg: #this is what it was before for useInters. is the intraonly version correct?
             plt.loglog(x,[baselineIntraChrProb for i in x],'k-')
             plt.loglog(x,[baselineIntraChrProb for i in x],'b-')
+        elif useInters:
+            plt.loglog(x,[baselineIntraChrProb for i in x],'b-')
+        else:
+            plt.loglog(x,[baselineIntraChrProb for i in x],'k-')
+            
+
+            
         if distLowThres>-1 and distUpThres>-1:
             plt.xlim([distLowThres, distUpThres])
         plt.ylabel('Contact probability (log-scale)',fontsize='large')
@@ -348,7 +374,8 @@ def fit_Spline(x,y,yerr,infilename,sortedInteractions,biasDic,figname,passNo):
             prior_p=1.0
             p_val=1.0
             p_vals.append(p_val)
-        elif interxn.getType(distLowThres,distUpThres)=='intraInRange': 
+
+        elif interxn.getType(distLowThres,distUpThres)=='intraInRange' and not interOnly: 
             # make sure the interaction distance is covered by the probability bins
             distToLookUp=max(interxn.distance,min(x))
             distToLookUp=min(distToLookUp,max(x))
@@ -360,13 +387,13 @@ def fit_Spline(x,y,yerr,infilename,sortedInteractions,biasDic,figname,passNo):
             p_val=scsp.bdtrc(interxn.hitCount-1,observedIntraInRangeSum,prior_p)
             p_vals.append(p_val)
 
-        elif interxn.getType(distLowThres,distUpThres)=='intraShort':
+        elif interxn.getType(distLowThres,distUpThres)=='intraShort' and not interOnly:
             prior_p=1.0
             p_val=1.0
             intraVeryProximalCount +=1
             p_vals.append(p_val)
 
-        elif interxn.getType(distLowThres,distUpThres)=='intraLong':
+        elif interxn.getType(distLowThres,distUpThres)=='intraLong' and not interOnly:
             # out of range bigger than distUpThres
             # use the prior of the baseline intra-chr interaction probability
             prior_p=1.0 #baselineIntraChrProb*(bias1*bias2)  # biases added in the picture
@@ -375,7 +402,7 @@ def fit_Spline(x,y,yerr,infilename,sortedInteractions,biasDic,figname,passNo):
             p_vals.append(p_val)
 
         else:
-            if useInters:
+            if allReg or interOnly:
                 #prior_p=baselineIntraChrProb
                 prior_p=baselineInterChrProb*(bias1*bias2) # biases added in the picture
                 ############# THIS HAS TO BE interactionCount-1 ##################
@@ -386,9 +413,12 @@ def fit_Spline(x,y,yerr,infilename,sortedInteractions,biasDic,figname,passNo):
     infile.close()
 
     # Do the BH FDR correction 
-    if useInters:
+    if allReg:
         q_vals=myStats.benjamini_hochberg_correction(p_vals, possibleInterAllCount+possibleIntraAllCount)
         sys.stderr.write("possibleInterAllCount+possibleIntraAllCount " + repr(possibleInterAllCount+possibleIntraAllCount)+"\n")
+    elif interOnly:
+        q_vals=myStats.benjamini_hochberg_correction(p_vals, possibleInterAllCount)
+        sys.stderr.write("possibleInterAllCount+possibleIntraAllCount " + repr(possibleInterAllCount)+"\n")
     else:
         q_vals=myStats.benjamini_hochberg_correction(p_vals, possibleIntraInRangeCount)
         sys.stderr.write("possibleIntraInRangeCount " + repr(possibleIntraInRangeCount)+"\n")
@@ -408,14 +438,14 @@ def fit_Spline(x,y,yerr,infilename,sortedInteractions,biasDic,figname,passNo):
         interactionCount=int(words[4])
         p_val=p_vals[count]
         q_val=q_vals[count]
-        
-        if useInters==False and chrNo1==chrNo2: # intra
-            interactionDistance=abs(midPoint1-midPoint2) # dist 
+      
+        #correct?
+        if (allReg or interOnly) and chrNo1!=chrNo2: #interRxns
+            outfile.write("%s\t%d\t%s\t%d\t%d\t%e\t%e\n" % (str(chrNo1),midPoint1,str(chrNo2),midPoint2,interactionCount,p_val,q_val))
+        if (allReg or not interOnly) and chrNo1==chrNo2: #intraRxns
+            interactionDistance=abs(midPoint1-midPoint2)
             if myUtils.in_range_check(interactionDistance,distLowThres,distUpThres):
                 outfile.write("%s\t%d\t%s\t%d\t%d\t%e\t%e\n" % (str(chrNo1),midPoint1,str(chrNo2),midPoint2,interactionCount,p_val,q_val))
-        elif useInters==True and chrNo1!=chrNo2:
-            outfile.write("%s\t%d\t%s\t%d\t%d\t%e\t%e\n" % (str(chrNo1),midPoint1,str(chrNo2),midPoint2,interactionCount,p_val,q_val))
-        #outfile.write("ALL\t%s\t%d\t%s\t%d\t%d\t%e\t%e\n" % (str(chrNo1),midPoint1,str(chrNo2),midPoint2,interactionCount,p_val,q_val))
 
         count+=1
     # END for - printing pvals and qvals for all the interactions
@@ -660,7 +690,9 @@ def read_All_Interactions(infilename,biasDic):
                 # every pair should already be in the dictionary with a zero interaction count
                 dictkey=str(interxn.chr1)+'-'+str(min(interxn.mid1,interxn.mid2))+'-'+str(max(interxn.mid1,interxn.mid2))
                 if not dictkey in possiblePairsPerDistance:
-                    sys.exit("Illegal fragment pair")
+                    if not (str(interxn.chr1)==str(interxn.chr2) and interxn.mid1==interxn.mid2): #NEW #NEW #NEW 
+                        sys.exit("FitHiC encountered an unexpected fragment pair in the interactionCounts file %s" % dictkey)
+                    continue
                 else:
                     possiblePairsPerDistance[dictkey]=[interxn.distance,interxn.hitCount,bias1*bias2] #--now with biases
                 observedIntraInRangeSum +=interxn.hitCount
@@ -783,6 +815,7 @@ def plot_qvalues(q_values,minFDR,maxFDR,increment,figname):
     significantTicks=[0 for i in range(len(qvalTicks))]
     qvalBins=[-1 for i in range(len(q_values))]
     for i, q in enumerate(q_values):
+        if math.isnan(q): q=1 #make sure NaNs are set to 1 #NEW #NEW #NEW
         qvalBins[i]=int(math.floor(q/increment))
     
     for i in range(len(qvalBins)):
