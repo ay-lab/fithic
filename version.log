@@ -50,3 +50,10 @@ Bug Fixes:
 3. Made the output dir. if user has not already
 
 Sorry this took so long!
+__________________________________________________________________
+
+fithic_1.0.7.tgz - 10/26/2017
+-------------------------------
+Bug Fixes:
+1. Fixed bug with -x option 
+2. Added conditionals to import matplotlib statement 
