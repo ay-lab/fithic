@@ -25,7 +25,7 @@ noOfPasses=1
 
 for i in Duan_yeast_EcoRI Duan_yeast_HindIII; do
 #   mkdir -p outputs/$i
-   python ../../fithic-runner.py -l "$i" -f $inF/$i.gz -i $inI/$i.gz -L $distLowThres -U $distUpThres -b $noOfBins -p $noOfPasses -o outputs/$i --quiet -x allReg
+   python ../../fithic-runner.py -l "$i" -f $inF/$i.gz -i $inI/$i.gz -L $distLowThres -U $distUpThres -b $noOfBins -p $noOfPasses -o outputs/$i --quiet -x interOnly -v
 done
 
 #####  Settings for only chromosome 1 of 		#####
@@ -45,7 +45,7 @@ noOfPasses=1
 # without normalization
 for i in Dixon_hESC_HindIII_hg18_combineFrags10_chr1 Dixon_mESC_HindIII_mm9_combineFrags10_chr1; do
    mkdir -p outputs/$i
-   python ../fithic-runner.py -l "$i" -f $inF/$i.gz -i $inI/$i.gz -L $distLowThres -U $distUpThres -b $noOfBins -p $noOfPasses -o outputs/$i --quiet
+   python ../../fithic-runner.py -l "$i" -f $inF/$i.gz -i $inI/$i.gz -L $distLowThres -U $distUpThres -b $noOfBins -p $noOfPasses -o outputs/$i --quiet -x intraOnly
 done
 
 # without normalization - fixed size windows

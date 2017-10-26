@@ -119,7 +119,7 @@ def main():
     if options.visual==True:
         # imports related to matplotlib to generate plots
         import matplotlib
-        #matplotlib.use('Agg')
+        matplotlib.use('Agg')
         import matplotlib.pyplot as plt
         from matplotlib.ticker import ScalarFormatter, FormatStrFormatter
         #### matplotlib fontsize settings
@@ -160,7 +160,12 @@ def main():
         allReg=True
     elif chromosome_region == "interOnly":
         interOnly=True
-
+    elif chromosome_region == "intraOnly":
+        interOnly=False
+        allReg=False
+    else:
+        print("Invalid Option. Only options are 'All', 'interOnly', or 'intraOnly'")
+        sys.exit(2)
     libname=options.libname
     noOfPasses=options.noOfPasses
     discBinsize=options.discBinsize
@@ -311,7 +316,7 @@ def fit_Spline(x,y,yerr,infilename,sortedInteractions,biasDic,figname,passNo):
         if allReg: #NEW no option to plot intraOnly?
             plt.plot(myUtils.scale_a_list(x,toKb),myUtils.scale_a_list([baselineIntraChrProb for i in x],toProb),'k-',label="Baseline intra-chromosomal")
             plt.plot(myUtils.scale_a_list(x,toKb),myUtils.scale_a_list([baselineIntraChrProb for i in x],toProb),'b-',label="Baseline inter-chromosomal")
-        elif useInters:
+        elif interOnly:
             plt.plot(myUtils.scale_a_list(x,toKb),myUtils.scale_a_list([baselineIntraChrProb for i in x],toProb),'b-',label="Baseline inter-chromosomal")
         else: #this is new, before it plotted all. what's desired behavior?
             plt.plot(myUtils.scale_a_list(x,toKb),myUtils.scale_a_list([baselineIntraChrProb for i in x],toProb),'k-',label="Baseline intra-chromosomal")
@@ -330,7 +335,7 @@ def fit_Spline(x,y,yerr,infilename,sortedInteractions,biasDic,figname,passNo):
         if allReg: #this is what it was before for useInters. is the intraonly version correct?
             plt.loglog(x,[baselineIntraChrProb for i in x],'k-')
             plt.loglog(x,[baselineIntraChrProb for i in x],'b-')
-        elif useInters:
+        elif interOnly:
             plt.loglog(x,[baselineIntraChrProb for i in x],'b-')
         else:
             plt.loglog(x,[baselineIntraChrProb for i in x],'k-')
