@@ -57,3 +57,24 @@ fithic_1.0.7.tgz - 10/26/2017
 Bug Fixes:
 1. Fixed bug with -x option 
 2. Added conditionals to import matplotlib statement 
+
+__________________________________________________________________
+
+fithic_1.0.8.tgz - 12/11/2017 #Thank you to Ye Zheng for bringing
+                                this to our attention!
+-------------------------------
+Bug Fixes:
+1. Isotonic regression is now strictly antitonic. 
+~~~During the spline fit phase of fithic, we are looking to smooth
+the contacts to a monotonically decreasing function. Previously,
+the IsotonicRegression function from sklearn was not making this
+assumption, and was empirically determining if the function
+was isotonic(increasing) or antitonic(decreasing). While it would
+typically determine it is antitonic and proceed normally, Ye found
+a case where the function determined the flip (isotonic) and this
+led to significant influences on fithic's 'significant contacts' 
+determination. 
+
+It should be obvious when this has occured, as the
+results would be significantly different; however, it is still 
+recommended all users update ASAP.

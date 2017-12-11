@@ -16,11 +16,6 @@ from scipy import optimize
 from optparse import OptionParser
 import scipy.special as scsp
 import bisect
-# R dependencies
-#import rpy2.robjects as ro
-#from rpy2.robjects.packages import importr
-#fdrtool = importr('fdrtool')
-
 import gzip
 
 
@@ -30,8 +25,7 @@ from scipy.stats.mstats import mquantiles
 import myStats
 import myUtils
 
-
-##NEW
+#new isotonic regression to avoid R dependency
 from sklearn.isotonic import IsotonicRegression
 
 
@@ -278,29 +272,8 @@ def fit_Spline(x,y,yerr,infilename,sortedInteractions,biasDic,figname,passNo):
 
 
     ####ASSUMING R ANTITONIC REGRESSION
-
-    # R vector format
-    #rSplineX=ro.FloatVector(splineX)
-    #rSplineY=ro.FloatVector(splineY)
-    #rMonoReg=ro.r['monoreg']
-    # do the antitonic regression
-    #allRres=rMonoReg(rSplineX,rSplineY,type="antitonic")
-    #rNewSplineY=allRres[3]
-    # convert data back to Python format
-    #newSplineY=[]
-    #diff=[]
-    #diffX=[]
-    #for i in range(len(rNewSplineY)):
-    #   newSplineY.append(rNewSplineY[i])
-    #   if (splineY[i]-newSplineY[i]) > 0:
-    #       diff.append(splineY[i]-newSplineY[i])
-    #       diffX.append(splineX[i])
-    # END for
-    #print len(splineX)
-
-    ####NEW
     ir = IsotonicRegression()
-    newSplineY = ir.fit_transform(splineX, splineY)
+    newSplineY = ir.fit_transform(splineX, splineY, increasing=False)
 
     residual =sum([i*i for i in (y - ius(x))])
 
