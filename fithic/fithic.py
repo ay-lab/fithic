@@ -272,8 +272,8 @@ def fit_Spline(x,y,yerr,infilename,sortedInteractions,biasDic,figname,passNo):
 
 
     ####ASSUMING R ANTITONIC REGRESSION
-    ir = IsotonicRegression()
-    newSplineY = ir.fit_transform(splineX, splineY, increasing=False)
+    ir = IsotonicRegression(increasing=False)
+    newSplineY = ir.fit_transform(splineX, splineY)
 
     residual =sum([i*i for i in (y - ius(x))])
 

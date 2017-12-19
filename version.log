@@ -78,3 +78,12 @@ determination.
 It should be obvious when this has occured, as the
 results would be significantly different; however, it is still 
 recommended all users update ASAP.
+__________________________________________________________________
+
+fithic_1.0.9.tgz - 12/19/2017 
+-------------------------------
+Bug Fixes:
+1. Modified isotonic regression such that it's not version
+independent
+__________________________________________________________________
+
