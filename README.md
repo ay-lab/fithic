@@ -1,4 +1,7 @@
 # fithic
+
+Please use the Google Group for discussions/bug reports/analysis questions:
+https://groups.google.com/forum/#!forum/fithic
 ___________________________________________________________
 Developed by Ferhat Ay, Timothy Bailey and William Noble
 January 19th, 2014
