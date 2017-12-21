@@ -127,7 +127,7 @@ Options:
                         contact maps produced by genome architecture assays.
                         Released on January 19, 2014.  Method developed by
                         Ferhat Ay, Timothy Bailey and William Noble.
-                        Implemented by Ferhat Ay (ferhatay@uw.edu).
+                        Implemented by Ferhat Ay (ferhatay@lji.org).
                         Copyright (c), 2012, University of Washington.  This
                         software is offered under an MIT license.  For
                         details: http://opensource.org/licenses/MIT
@@ -273,7 +273,7 @@ This tar ball includes four sample datasets.
    to large file sizes for the whole-genome.
 
 For more data sets or processing your own data with fit-hi-c please
-contact ferhatay@uw.edu.
+contact ferhatay@lji.org
 
 ___________________________________________________________________
 
@@ -340,6 +340,6 @@ CONTACT
 ___________________________________________________________________
 
 For any problem or request about the software, please contact
-Ferhat Ay <ferhatay@uw.edu>.
+Ferhat Ay <ferhatay@lji.org> or Arya Kaul <akaul@lji.org>
 
 
