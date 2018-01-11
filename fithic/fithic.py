@@ -64,7 +64,7 @@ toProb=10**5
 overSample=5 # can be changed to have more/less overfitted splines
 ####
 #########################
-versionStr="fit-hi-c version 1.0.6. \nA tool for assigning statistical confidence estimates to intra-chromosomal \ncontact maps produced by genome architecture assays. \n\nReleased on January 19, 2014. \nMethod developed by Ferhat Ay, Timothy Bailey and William Noble. \nImplemented by Ferhat Ay (ferhatay@uw.edu). \n\nCopyright (c), 2012, University of Washington. \nThis software is offered under an MIT license. \nFor details: http://opensource.org/licenses/MIT\n"
+versionStr="fit-hi-c version 1.1.0. \nA tool for assigning statistical confidence estimates to intra-chromosomal \ncontact maps produced by genome architecture assays. \n\nReleased on January 19, 2014. \nMethod developed by Ferhat Ay, Timothy Bailey and William Noble. \nImplemented by Ferhat Ay (ferhatay@uw.edu). \n\nCopyright (c), 2012, University of Washington. \nThis software is offered under an MIT license. \nFor details: http://opensource.org/licenses/MIT\n"
 
 
 def main():
@@ -729,7 +729,7 @@ def generate_FragPairs(infilename):
         chrNo=words[0] # can be an integer or a string
         #words[1] ignored
         midPoint=int(words[2])
-        hitCount=int(words[3])
+        hitCount=float(words[3])
         # whenever the name of the chromosome changes 
         if currChrNo!=chrNo:
             listOfMappableFrags.append(fragsPerChr)
