@@ -271,7 +271,6 @@ def fit_Spline(x,y,yerr,infilename,sortedInteractions,biasDic,figname,passNo):
 
 
 
-    ####ASSUMING R ANTITONIC REGRESSION
     ir = IsotonicRegression(increasing=False)
     newSplineY = ir.fit_transform(splineX, splineY)
 
@@ -620,13 +619,14 @@ def read_All_Interactions(infilename,biasDic):
     sys.stderr.write("\nReading all the interactions and then sorting the intra chr ones in range according to genomic distance\n")
     sys.stderr.write("------------------------------------------------------------------------------------\n")
 
-    # global variables initialized by this function
-    global observedIntraAllSum
-    global observedIntraAllCount
-    global observedIntraInRangeSum
-    global observedIntraInRangeCount
     global observedInterAllSum
     global observedInterAllCount
+    global observedIntraAllSum
+    global observedIntraAllCount
+    
+    # global variables initialized by this function
+    global observedIntraInRangeSum
+    global observedIntraInRangeCount
     global minObservedGenomicDist
     global maxObservedGenomicDist
 
@@ -747,7 +747,9 @@ def generate_FragPairs(infilename):
     totalNoOfFrags += len(fragsPerChr)
     chrList.append(currChrNo)
     infile.close()
-    
+   
+#HERE
+
     # create all possible frag pairs 
     possibleInterAllCount=0
     possibleIntraInRangeCount=0
