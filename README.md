@@ -40,23 +40,6 @@ present on a Unix machine (tested on LinuxMint Maya and RedHat 5).
 	>>> import rpy2.robjects as ro
 	>>> 
 
-2- R 2.11.1 or higher with the package below installed:
-
-  fdrtool (http://strimmerlab.org/software/fdrtool/index.html)
-
-  This package can simply be installed by typing R in terminal 
-  followed by the install statement
-
-    	install.packages("fdrtool")
-
-  Select a CRAN mirror to proceed with the install. A successful 
-  install should end with:
-
-	....
-	* DONE (fdrtool)
-	The downloaded packages are in
-	‘/tmp/RtmpIPfChJ/downloaded_packages’
-
 ___________________________________________________________________
 
 HOW TO EXTRACT THE SOFTWARE AND SAMPLE DATA SETS
@@ -82,10 +65,10 @@ To simply run this script type
 
 You can also run the python script fit-hi-c.py to read usage information.
 
-	python bin/fit-hi-c.py -h
+	python fithic/fithic.py -h
 
 ----	
-Usage: fit-hi-c.py [options]
+Usage: fithic.py [options]
 
 Options:
   -h, --help            show this help message and exit
@@ -341,5 +324,9 @@ ___________________________________________________________________
 
 For any problem or request about the software, please contact
 Ferhat Ay <ferhatay@lji.org> or Arya Kaul <akaul@lji.org>
+
+Additionally, please use the FitHiC google group as a means to
+communicate to other users of the software: 
+https://groups.google.com/forum/#!forum/fithic
 
 
