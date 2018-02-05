@@ -748,7 +748,6 @@ def generate_FragPairs(infilename):
     chrList.append(currChrNo)
     infile.close()
    
-#HERE
 
     # create all possible frag pairs 
     possibleInterAllCount=0
