@@ -19,7 +19,6 @@ import bisect
 import gzip
 
 
-from pylab import *
 from random import *
 from scipy.stats.mstats import mquantiles
 import myStats
@@ -64,7 +63,7 @@ toProb=10**5
 overSample=5 # can be changed to have more/less overfitted splines
 ####
 #########################
-versionStr="fit-hi-c version 1.0.6. \nA tool for assigning statistical confidence estimates to intra-chromosomal \ncontact maps produced by genome architecture assays. \n\nReleased on January 19, 2014. \nMethod developed by Ferhat Ay, Timothy Bailey and William Noble. \nImplemented by Ferhat Ay (ferhatay@uw.edu). \n\nCopyright (c), 2012, University of Washington. \nThis software is offered under an MIT license. \nFor details: http://opensource.org/licenses/MIT\n"
+versionStr="fit-hi-c version 1.1.0. \nA tool for assigning statistical confidence estimates to intra-chromosomal \ncontact maps produced by genome architecture assays. \n\nReleased on January 19, 2014. \nMethod developed by Ferhat Ay, Timothy Bailey and William Noble. \nImplemented by Ferhat Ay (ferhatay@uw.edu). \n\nCopyright (c), 2012, University of Washington. \nThis software is offered under an MIT license. \nFor details: http://opensource.org/licenses/MIT\n"
 
 
 def main():
@@ -112,10 +111,17 @@ def main():
     # Set to True for generating plots and False for omitting them
     if options.visual==True:
         # imports related to matplotlib to generate plots
+        global matplotlib
         import matplotlib
         matplotlib.use('Agg')
+        global plt
         import matplotlib.pyplot as plt
-        from matplotlib.ticker import ScalarFormatter, FormatStrFormatter
+        global ScalarFormatter
+        global FormatStrFormatter 
+        global MaxNLocator
+
+        from matplotlib.ticker import ScalarFormatter, FormatStrFormatter, MaxNLocator
+        from pylab import *
         #### matplotlib fontsize settings
         plt.rcParams['font.size']=17
         plt.rcParams['axes.labelsize']='x-large'
@@ -169,6 +175,7 @@ def main():
     if not os.path.exists(outdir):
         os.makedirs(outdir)
     visual=options.visual
+
 
     # read the mandatory input files -f and -i
     generate_FragPairs(options.fragsfile)
