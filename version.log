@@ -87,7 +87,20 @@ Bug Fixes:
 independent
 __________________________________________________________________
 
-fithic_1.1.0.tgz - 02/05/2018
+fithic_1.1.0.tgz - 1/11/2018
+-------------------------------
+Bug Fixes:
+1. Modified file parser to accept decimal's such that it works 
+with hicpro2fithic.py script
+__________________________________________________________________
+
+fithic_1.1.1.tgz - 1/11/2018
+-------------------------------
+Bug Fixes:
+1. Thought of better fix to the problem addressed in 1.1.0
+__________________________________________________________________
+
+fithic_1.1.2.tgz - 02/05/2018
 -------------------------------
 Bug Fixes:
 1. Fixed issue with optional import of matplotlib and pylab

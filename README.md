@@ -1,4 +1,7 @@
 # fithic
+
+Please use the Google Group for discussions/bug reports/analysis questions:
+https://groups.google.com/forum/#!forum/fithic
 ___________________________________________________________
 Developed by Ferhat Ay, Timothy Bailey and William Noble
 January 19th, 2014
@@ -37,23 +40,6 @@ present on a Unix machine (tested on LinuxMint Maya and RedHat 5).
 	>>> import rpy2.robjects as ro
 	>>> 
 
-2- R 2.11.1 or higher with the package below installed:
-
-  fdrtool (http://strimmerlab.org/software/fdrtool/index.html)
-
-  This package can simply be installed by typing R in terminal 
-  followed by the install statement
-
-    	install.packages("fdrtool")
-
-  Select a CRAN mirror to proceed with the install. A successful 
-  install should end with:
-
-	....
-	* DONE (fdrtool)
-	The downloaded packages are in
-	‘/tmp/RtmpIPfChJ/downloaded_packages’
-
 ___________________________________________________________________
 
 HOW TO EXTRACT THE SOFTWARE AND SAMPLE DATA SETS
@@ -79,10 +65,10 @@ To simply run this script type
 
 You can also run the python script fit-hi-c.py to read usage information.
 
-	python bin/fit-hi-c.py -h
+	python fithic/fithic.py -h
 
 ----	
-Usage: fit-hi-c.py [options]
+Usage: fithic.py [options]
 
 Options:
   -h, --help            show this help message and exit
@@ -124,7 +110,7 @@ Options:
                         contact maps produced by genome architecture assays.
                         Released on January 19, 2014.  Method developed by
                         Ferhat Ay, Timothy Bailey and William Noble.
-                        Implemented by Ferhat Ay (ferhatay@uw.edu).
+                        Implemented by Ferhat Ay (ferhatay@lji.org).
                         Copyright (c), 2012, University of Washington.  This
                         software is offered under an MIT license.  For
                         details: http://opensource.org/licenses/MIT
@@ -270,7 +256,7 @@ This tar ball includes four sample datasets.
    to large file sizes for the whole-genome.
 
 For more data sets or processing your own data with fit-hi-c please
-contact ferhatay@uw.edu.
+contact ferhatay@lji.org
 
 ___________________________________________________________________
 
@@ -337,6 +323,10 @@ CONTACT
 ___________________________________________________________________
 
 For any problem or request about the software, please contact
-Ferhat Ay <ferhatay@uw.edu>.
+Ferhat Ay <ferhatay@lji.org> or Arya Kaul <akaul@lji.org>
+
+Additionally, please use the FitHiC google group as a means to
+communicate to other users of the software: 
+https://groups.google.com/forum/#!forum/fithic
 
 
