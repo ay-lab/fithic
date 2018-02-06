@@ -204,7 +204,11 @@ def read_ICE_biases(infilename):
     biasDic={}
     
     rawBiases=[]
-    infile =gzip.open(infilename, 'r')
+    try:
+        infile =gzip.open(infilename, 'r')
+        infile.readline()
+    except:
+        infile = open(infilename, 'r')
     for line in infile:
         words=line.rstrip().split()
         chr=words[0]; midPoint=int(words[1]); bias=float(words[2])
@@ -218,7 +222,11 @@ def read_ICE_biases(infilename):
     #sys.stderr.write("95th quantile of biases: "+str(topQ)+"\n")
 
     #normFactor=sum(rawBiases)/len(rawBiases)
-    infile =gzip.open(infilename, 'r')
+    try:
+        infile =gzip.open(infilename, 'r')
+        infile.readline()
+    except:
+        infile = open(infilename, 'r')
     totalC=0
     discardC=0
     for line in infile:
@@ -330,7 +338,11 @@ def fit_Spline(x,y,yerr,infilename,sortedInteractions,biasDic,figname,passNo):
         plt.savefig(outdir+'/'+figname+'.png')
 
     # NOW write the calculated pvalues and corrected pvalues in a file 
-    infile =gzip.open(infilename, 'r')
+    try:
+        infile =gzip.open(infilename, 'r')
+        infile.readline()
+    except:
+        infile = open(infilename, 'r')
     intraInRangeCount=0
     intraOutOfRangeCount=0
     intraVeryProximalCount=0
@@ -408,7 +420,11 @@ def fit_Spline(x,y,yerr,infilename,sortedInteractions,biasDic,figname,passNo):
         q_vals=myStats.benjamini_hochberg_correction(p_vals, possibleIntraInRangeCount)
         sys.stderr.write("possibleIntraInRangeCount " + repr(possibleIntraInRangeCount)+"\n")
 
-    infile =gzip.open(infilename, 'r')
+    try:
+        infile =gzip.open(infilename, 'r')
+        infile.readline()
+    except:
+        infile = open(infilename, 'r')
     outfile =gzip.open(outdir+'/'+figname+'.significances.txt.gz', 'w')
     sys.stderr.write("Writing p-values to file %s" % figname + ".significances.txt.gz\n")
     count=0
@@ -638,7 +654,11 @@ def read_All_Interactions(infilename,biasDic):
     global maxObservedGenomicDist
 
     #read the interactions file - create a two dimensional numpy array with each row is a [distance,count] pair
-    infile =gzip.open(infilename, 'r')
+    try:
+        infile =gzip.open(infilename, 'r')
+        infile.readline()
+    except:
+        infile = open(infilename, 'r')
     for line in infile:
         words=line.rstrip().split()
         interxn=myUtils.Interaction([words[0], int(words[1]), words[2], int(words[3])])
@@ -721,7 +741,11 @@ def generate_FragPairs(infilename):
     chrList=[]
 
     #get the name of the first chr
-    infile =gzip.open(infilename, 'r')
+    try:
+        infile =gzip.open(infilename, 'r')
+        infile.readline()
+    except:
+        infile = open(infilename, 'r')
     line=infile.readline()
     words=line.rstrip().split()
     currChrNo=words[0] #get the name of first chr
@@ -730,7 +754,11 @@ def generate_FragPairs(infilename):
     # read the fragments file 
     fragsPerChr=[] # temporary list that will be added to listOfMappableFrags for each chr
     totalNoOfFrags=0 # total number of all mappable fragments
-    infile =gzip.open(infilename, 'r')
+    try:
+        infile =gzip.open(infilename, 'r')
+        infile.readline()
+    except:
+        infile = open(infilename, 'r')
     for line in infile:
         words=line.rstrip().split()
         chrNo=words[0] # can be an integer or a string

@@ -104,4 +104,8 @@ fithic_1.1.2.tgz - 02/05/2018
 -------------------------------
 Bug Fixes:
 1. Fixed issue with optional import of matplotlib and pylab
+2. Made input compression agnostic (you don't have to gzip input
+files anymore! But we still highly recommend it!)
+
+Special thanks to aakashsur for all the ideas!
 __________________________________________________________________
