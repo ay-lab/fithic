@@ -100,16 +100,51 @@ def main():
     #TODO sort by coded
     #TODO add error/warning messages
     fragsFile = args.fragsfile
+    if os.path.exists(fragsFile):
+        print("Reading fragments file from: %s" % fragsFile)
+    else:
+        print("Fragment file not found")
+        sys.exit(2)
+
     contactCountsFile = args.intersfile
+    if os.path.isfile(contactCountsFile):
+        print("Reading interactions file from: %s" % contactCountsFile)
+    else:
+        print("Interaction file not found")
+        sys.exit(2)
+
     outputPath = args.outdir
+    if not os.path.isdir(outputPath):
+        os.makedirs(outputPath)
+        print("Output path created %s" % outputPath)
+    else:
+        print("Output path being used from %s" % outputPath)
+        
+    biasFile = None
+    if args.biasfile:
+        if os.path.isfile(biasFile):
+            print("Reading bias file from: %s" % biasFile
+        else:
+            print("Bias file not found")
+            sys.exit(2)
+        biasFile = args.biasfile
+    else:
+        print("No bias file being used")
     
     noOfPasses = 0
     if args.noOfPasses:
         noOfPasses = args.noOfPasses
+    print("The number of passes for spline fitting is %s" % noOfPasses) 
+    
+    noOfBins = 100
+    if args.noOfBins:
+        noOfBins = args.noOfBins
+    print("The number of bins is %s" % noOfBins) 
     
     libName = "FitHiC"
     if args.libname:
         libName = args.libname
+    print("The name of the library will be %s" % libName) 
     
     noOfBins = 100
     if args.noOfBins:
@@ -123,7 +158,7 @@ def main():
     if args.mappabilityThreshold:
         mappThres = args.mappabilityThreshold
 
-    distUpThres = 0 #TODO change to inf.
+    distUpThres = math.inf
     distLowThres = 0
     if args.distUpThres:
         distUpThres = args.distUpThres
@@ -141,6 +176,8 @@ def main():
     resolution = 0
     if args.resolution:
         resolution = args.resolution
+   
+
     #TODO add summary print
     
     #TODO end
@@ -177,6 +214,9 @@ def main():
 
 
 	mainDic={} # given a distance this dictionary will return [Npairs,TotalContactCount] including all possible pairs (even if not in input file)
+    
+    mainDic = read_Interactions2(mainDic, contactCountsFile)
+
 
 	#Enumerate (fast version) or generate (otherwise) all possible pairs of fragments within the range of interest.
     (mainDic,noOfFrags, maxPossibleGenomicDist, possibleIntraInRangeCount, interChrProb, baselineIntraChrProb)= generate_FragPairs(fragsFile, resolution))
@@ -214,6 +254,140 @@ def main():
 
 ##FUNCTIONS START###
 
+def read_Interactions2(mainDic, contactCountsFile, biasDic):
+	print("Reading the contact counts file to generate bins")
+	print("------------------------------------------------------------------------------------")
+
+    
+	observedInterAllSum=0 #used
+	observedInterAllCount=0 #notused
+	observedIntraAllSum=0 #used
+	observedIntraAllCount=0 #notused
+	observedIntraInRangeSum=0 #used
+	observedIntraInRangeCount=0 #notused
+	minObservedGenomicDist=math.inf #notused
+	maxObservedGenomicDist=0 #notused
+
+
+    #open up contactCountsFile
+    try:
+        contactCountsF = gzip.open(contactCountsFile, 'r')
+        contactCountsF.readline()
+    except:
+        contactCountsF = open(contactCountsFile, 'r')
+    
+    #Loop through every line in the contactCountsFile
+    for everyLine in contactCountsFile:
+		ch1,mid1,ch2,mid2,contactCount=line.split()
+       
+        #start generating biasDic if not known 
+        if biasDic==None:
+            if ch1 not in biasDic:
+                biasDic[ch1]={}
+            if ch2 not in biasDic:
+                biasDic[ch2]={}
+            if mid1 not in biasDic[ch1]:
+                biasDic[ch1][mid1] = 1.0
+            if mid2 not in biasDic[ch2]:
+                biasDic[ch2][mid2] = 1.0
+	
+        #create the interaction
+        contactCount=float(contactCount)
+		interxn=myUtils.Interaction([ch1, int(mid1), ch2, int(mid2)])
+		interxn.setCount(contactCount)
+		
+        if interxn.type=='inter':
+			observedInterAllSum +=interxn.hitCount #TODO should I include inrange check?
+			observedInterAllCount +=1
+		else: # any type of intra
+			observedIntraAllSum +=interxn.hitCount
+			observedIntraAllCount +=1
+			if interxn.getType(distLowThres,distUpThres)=='intraInRange':
+				minObservedGenomicDist=min(minObservedGenomicDist,interxn.distance)
+				maxObservedGenomicDist=max(maxObservedGenomicDist,interxn.distance)
+				if interxn.distance in mainDic:
+					mainDic[interxn.distance][1]+=contactCount
+				observedIntraInRangeSum +=interxn.hitCount
+				observedIntraInRangeCount +=1
+        
+	contactCountsFile.close()
+	print("Observed, Intra-chr in range: pairs= "+str(observedIntraInRangeCount) +"\t totalCount= "+str(observedIntraInRangeSum))
+	print("Observed, Intra-chr all: pairs= "+str(observedIntraAllCount) +"\t totalCount= "+str(observedIntraAllSum))
+	print("Observed, Inter-chr all: pairs= "+str(observedInterAllCount) +"\t totalCount= "+str(observedInterAllSum))
+	print("Range of observed genomic distances [%d %d]" % (minObservedGenomicDist,maxObservedGenomicDist) + "\n"),
+        
+def	read_All_Interactions(mainDic,contactCountsFile,noOfFrags,biasDic):
+	print("\nReading all the contact counts\n"),
+	print("------------------------------------------------------------------------------------\n"),
+
+	observedInterAllSum=0 #used
+	observedInterAllCount=0 #notused
+	observedIntraAllSum=0 #used
+	observedIntraAllCount=0 #notused
+	observedIntraInRangeSum=0 #used
+	observedIntraInRangeCount=0 #notused
+	minObservedGenomicDist=0 #notused
+	maxObservedGenomicDist=0 #notused
+
+	#Xvals=[]
+	#Xindices=[]
+	#for i in range(noOfFrags):
+	#	Xvals.append([])
+	#	Xindices.append([])
+	##
+	infile=gzip.open(contactCountsFile,'r')
+	count=0
+	for line in infile:
+		ch1,mid1,ch2,mid2,contactCount=line.split()
+
+        if biasDic==None:
+            if chr1 not in biasDic:
+                biasDic[chr1]={}
+            if chr2 not in biasDic:
+                biasDic[chr2]={}
+            if mid1 not in biasDic[chr1]:
+                biasDic[chr1][mid1] = 1.0
+            if mid2 not in biasDic[chr2]:
+                biasDic[chr2][mid2] = 1.0
+		### FIXME: this part will need to be fixed for human etc
+		#ch1='chr'+ch1
+		#ch2='chr'+ch2
+		contactCount=float(contactCount)
+		interxn=myUtils.Interaction([ch1, int(mid1), ch2, int(mid2)])
+		interxn.setCount(contactCount)
+		count+=1
+
+		if count%1000000==0:
+			print count
+		if interxn.type=='inter':
+			observedInterAllSum +=interxn.hitCount
+			observedInterAllCount +=1
+		else: # any type of intra
+			observedIntraAllSum +=interxn.hitCount
+			observedIntraAllCount +=1
+			if interxn.getType(distLowThres,distUpThres)=='intraInRange':
+				minObservedGenomicDist=min(minObservedGenomicDist,interxn.distance)
+				maxObservedGenomicDist=max(maxObservedGenomicDist,interxn.distance)
+				if interxn.distance in mainDic:
+					mainDic[interxn.distance][1]+=contactCount
+				observedIntraInRangeSum +=interxn.hitCount
+				observedIntraInRangeCount +=1
+		# END else
+	#	indx1=allFragsDic[ch1][mid1]
+	#	indx2=allFragsDic[ch2][mid2]
+		#print str(indx1)+"\t"+str(indx2)
+	#	Xvals[indx1].append(contactCount)
+	#	Xindices[indx1].append(indx2)
+	#	Xvals[indx2].append(contactCount)
+	#	Xindices[indx2].append(indx1)
+	# END for
+	infile.close()
+	print("Observed, Intra-chr in range: pairs= "+str(observedIntraInRangeCount) +"\t totalCount= "+str(observedIntraInRangeSum))
+	print("Observed, Intra-chr all: pairs= "+str(observedIntraAllCount) +"\t totalCount= "+str(observedIntraAllSum))
+	print("Observed, Inter-chr all: pairs= "+str(observedInterAllCount) +"\t totalCount= "+str(observedInterAllSum))
+	print("Range of observed genomic distances [%d %d]" % (minObservedGenomicDist,maxObservedGenomicDist) + "\n"),
+
+	return (mainDic,observedInterAllSum,observedIntraAllSum,observedIntraInRangeSum, biasDic) # from read_All_Interactions
 
 
 def generate_FragPairs(fragsfile, mappThres, resolution):
@@ -344,78 +518,6 @@ def read_biases(infilename):
 
 	return biasDic # from read_biases
 
-def	read_All_Interactions(mainDic,contactCountsFile,noOfFrags,biasDic):
-	print("\nReading all the contact counts\n"),
-	print("------------------------------------------------------------------------------------\n"),
-
-	observedInterAllSum=0 #used
-	observedInterAllCount=0 #notused
-	observedIntraAllSum=0 #used
-	observedIntraAllCount=0 #notused
-	observedIntraInRangeSum=0 #used
-	observedIntraInRangeCount=0 #notused
-	minObservedGenomicDist=0 #notused
-	maxObservedGenomicDist=0 #notused
-
-	#Xvals=[]
-	#Xindices=[]
-	#for i in range(noOfFrags):
-	#	Xvals.append([])
-	#	Xindices.append([])
-	##
-	infile=gzip.open(contactCountsFile,'r')
-	count=0
-	for line in infile:
-		ch1,mid1,ch2,mid2,contactCount=line.split()
-
-        if biasDic==None:
-            if chr1 not in biasDic:
-                biasDic[chr1]={}
-            if chr2 not in biasDic:
-                biasDic[chr2]={}
-            if mid1 not in biasDic[chr1]:
-                biasDic[chr1][mid1] = 1.0
-            if mid2 not in biasDic[chr2]:
-                biasDic[chr2][mid2] = 1.0
-		### FIXME: this part will need to be fixed for human etc
-		#ch1='chr'+ch1
-		#ch2='chr'+ch2
-		contactCount=float(contactCount)
-		interxn=myUtils.Interaction([ch1, int(mid1), ch2, int(mid2)])
-		interxn.setCount(contactCount)
-		count+=1
-
-		if count%1000000==0:
-			print count
-		if interxn.type=='inter':
-			observedInterAllSum +=interxn.hitCount
-			observedInterAllCount +=1
-		else: # any type of intra
-			observedIntraAllSum +=interxn.hitCount
-			observedIntraAllCount +=1
-			if interxn.getType(distLowThres,distUpThres)=='intraInRange':
-				minObservedGenomicDist=min(minObservedGenomicDist,interxn.distance)
-				maxObservedGenomicDist=max(maxObservedGenomicDist,interxn.distance)
-				if interxn.distance in mainDic:
-					mainDic[interxn.distance][1]+=contactCount
-				observedIntraInRangeSum +=interxn.hitCount
-				observedIntraInRangeCount +=1
-		# END else
-	#	indx1=allFragsDic[ch1][mid1]
-	#	indx2=allFragsDic[ch2][mid2]
-		#print str(indx1)+"\t"+str(indx2)
-	#	Xvals[indx1].append(contactCount)
-	#	Xindices[indx1].append(indx2)
-	#	Xvals[indx2].append(contactCount)
-	#	Xindices[indx2].append(indx1)
-	# END for
-	infile.close()
-	print("Observed, Intra-chr in range: pairs= "+str(observedIntraInRangeCount) +"\t totalCount= "+str(observedIntraInRangeSum))
-	print("Observed, Intra-chr all: pairs= "+str(observedIntraAllCount) +"\t totalCount= "+str(observedIntraAllSum))
-	print("Observed, Inter-chr all: pairs= "+str(observedInterAllCount) +"\t totalCount= "+str(observedInterAllSum))
-	print("Range of observed genomic distances [%d %d]" % (minObservedGenomicDist,maxObservedGenomicDist) + "\n"),
-
-	return (mainDic,observedInterAllSum,observedIntraAllSum,observedIntraInRangeSum, biasDic) # from read_All_Interactions
 
 def calculate_Probabilities(mainDic,resolution,outfilename, observedIntraInRangeSum,noOfBins, maxPossibleGenomicDist, distScaling): #TODO fix resolution
 	print("\nCalculating probability means and standard deviations by equal-occupancy binning of contact counts\n"),

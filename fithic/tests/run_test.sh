@@ -27,6 +27,8 @@ for i in Duan_yeast_EcoRI Duan_yeast_HindIII; do
    python ../fithic-runner.py -l "$i" -f $inF/$i.gz -i $inI/$i.gz -L $distLowThres -U $distUpThres -b $noOfBins -p $noOfPasses -o outputs/$i --quiet -x interOnly -v
 done
 
+exit
+
 #####  Settings for only chromosome 1 of 		#####
 #####  human and mouse embryonic stem cell data 	#####
 #####  from Dixon et al.	 		  	#####
