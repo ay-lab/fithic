@@ -63,7 +63,7 @@ toProb=10**5
 overSample=5 # can be changed to have more/less overfitted splines
 ####
 #########################
-versionStr="fit-hi-c version 1.1.2. \nA tool for assigning statistical confidence estimates to intra-chromosomal \ncontact maps produced by genome architecture assays. \n\nReleased on January 19, 2014. \nMethod developed by Ferhat Ay, Timothy Bailey and William Noble. \nImplemented by Ferhat Ay (ferhatay@uw.edu). \n\nCopyright (c), 2012, University of Washington. \nThis software is offered under an MIT license. \nFor details: http://opensource.org/licenses/MIT\n"
+versionStr="fit-hi-c version 1.1.3. \nA tool for assigning statistical confidence estimates to intra-chromosomal \ncontact maps produced by genome architecture assays. \n\nReleased on January 19, 2014. \nMethod developed by Ferhat Ay, Timothy Bailey and William Noble. \nImplemented by Ferhat Ay (ferhatay@uw.edu). \n\nCopyright (c), 2012, University of Washington. \nThis software is offered under an MIT license. \nFor details: http://opensource.org/licenses/MIT\n"
 
 
 def main():
@@ -96,11 +96,11 @@ def main():
                       action="store_false", dest="visual", help="OPTIONAL: use this flag for omitting plots. DEFAULT behavior." )
     parser.add_option("-V", "--version", action="store_true", dest="version",
                       help=versionStr)
-    parser.add_option("-x", "--chromosome_region", dest="chromosome_region", ##NEW NEW NEW
+    parser.add_option("-x", "--chromosome_region", dest="chromosome_region", 
                       help="OPTIONAL: use this flag to determine which chromosomal regions to study (intraOnly, interOnly, All) \
                       DEFAULT is intraOnly" )
     parser.set_defaults(visual=False, noOfBins=100, distLowThres=-1, distUpThres=-1, mappabilityThreshold=1,noOfPasses=1,
-    discBinsize=5000,libname="",biasfile='none', version=False, chromosome_region="intraOnly")
+    discBinsize=5000,libname="fithic",biasfile='none', version=False, chromosome_region="intraOnly", outdir="./FITHICOUTPUT")
     (options, args) = parser.parse_args()
     if len(args) != 0:
         parser.error("incorrect number of arguments")
@@ -123,7 +123,7 @@ def main():
         from matplotlib.ticker import ScalarFormatter, FormatStrFormatter, MaxNLocator
         from pylab import *
         #### matplotlib fontsize settings
-        plt.rcParams['font.size']=17
+        #plt.rcParams['font.size']=17
         plt.rcParams['axes.labelsize']='x-large'
         plt.rcParams['xtick.labelsize']='large'
         plt.rcParams['ytick.labelsize']='large'
@@ -301,7 +301,7 @@ def fit_Spline(x,y,yerr,infilename,sortedInteractions,biasDic,figname,passNo):
         plt.plot(myUtils.scale_a_list(splineX,toKb), myUtils.scale_a_list(newSplineY,toProb),'g-',label="spline-"+str(passNo),linewidth=2)
         plt.errorbar(myUtils.scale_a_list(x,toKb),myUtils.scale_a_list(y,toProb),myUtils.scale_a_list(yerr,toProb),fmt='r.',label="Mean with std. error",linewidth=2) 
 
-        if allReg: #NEW no option to plot intraOnly?
+        if allReg: 
             plt.plot(myUtils.scale_a_list(x,toKb),myUtils.scale_a_list([baselineIntraChrProb for i in x],toProb),'k-',label="Baseline intra-chromosomal")
             plt.plot(myUtils.scale_a_list(x,toKb),myUtils.scale_a_list([baselineIntraChrProb for i in x],toProb),'b-',label="Baseline inter-chromosomal")
         elif interOnly:
@@ -309,8 +309,10 @@ def fit_Spline(x,y,yerr,infilename,sortedInteractions,biasDic,figname,passNo):
         else: #this is new, before it plotted all. what's desired behavior?
             plt.plot(myUtils.scale_a_list(x,toKb),myUtils.scale_a_list([baselineIntraChrProb for i in x],toProb),'k-',label="Baseline intra-chromosomal")
 
-        plt.ylabel('Contact probability (x10$^{-5}$)',fontsize='large')
-        plt.xlabel('Genomic distance (kb)',fontsize='large')
+        #plt.ylabel('Contact probability (x10$^{-5}$)',fontsize='large')
+        #plt.xlabel('Genomic distance (kb)',fontsize='large')
+        plt.ylabel('Contact probability (x10$^{-5}$)')
+        plt.xlabel('Genomic distance (kb)')
         if distLowThres>-1 and distUpThres>-1:
             plt.xlim(myUtils.scale_a_list([distLowThres, distUpThres],toKb))
         plt.gca().yaxis.set_major_locator( MaxNLocator(nbins = 3, prune=None))
@@ -323,7 +325,7 @@ def fit_Spline(x,y,yerr,infilename,sortedInteractions,biasDic,figname,passNo):
         if allReg: #this is what it was before for useInters. is the intraonly version correct?
             plt.loglog(x,[baselineIntraChrProb for i in x],'k-')
             plt.loglog(x,[baselineIntraChrProb for i in x],'b-')
-        elif interOnly:
+        elif interOnly:#WHAT?
             plt.loglog(x,[baselineIntraChrProb for i in x],'b-')
         else:
             plt.loglog(x,[baselineIntraChrProb for i in x],'k-')
@@ -332,8 +334,10 @@ def fit_Spline(x,y,yerr,infilename,sortedInteractions,biasDic,figname,passNo):
             
         if distLowThres>-1 and distUpThres>-1:
             plt.xlim([distLowThres, distUpThres])
-        plt.ylabel('Contact probability (log-scale)',fontsize='large')
-        plt.xlabel('Genomic distance (log-scale)',fontsize='large')
+        #plt.ylabel('Contact probability (log-scale)',fontsize='large')
+        #plt.xlabel('Genomic distance (log-scale)',fontsize='large')
+        plt.ylabel('Contact probability (log-scale)')
+        plt.xlabel('Genomic distance (log-scale)')
 
         plt.savefig(outdir+'/'+figname+'.png')
 
@@ -359,63 +363,67 @@ def fit_Spline(x,y,yerr,infilename,sortedInteractions,biasDic,figname,passNo):
         midPoint1=int(words[1])
         midPoint2=int(words[3])
 
-        bias1=1.0; bias2=1.0;  # assumes there is no bias to begin with
-        # if the biasDic is not null sets the real bias values
+        bias1=1.0; bias2=1.0;  # assumes there is no bias to begin with 
         if len(biasDic)>0:
             if chr1 in biasDic and midPoint1 in biasDic[chr1]:
                 bias1=biasDic[chr1][midPoint1]
             if chr2 in biasDic and midPoint2 in biasDic[chr2]:
                 bias2=biasDic[chr2][midPoint2]
+        # if the biasDic is not null sets the real bias values
 
-        if (bias1<0 or bias2<0) and interxn.type!='inter':
+        if (bias1<0 or bias2<0): #CHANGED - regardless of inter or intra
             prior_p=1.0
             p_val=1.0
             p_vals.append(p_val)
 
-        elif interxn.getType(distLowThres,distUpThres)=='intraInRange' and not interOnly: 
-            # make sure the interaction distance is covered by the probability bins
-            distToLookUp=max(interxn.distance,min(x))
-            distToLookUp=min(distToLookUp,max(x))
-            i=min(bisect.bisect_left(splineX, distToLookUp),len(splineX)-1) 
-            #prior_p=newSplineY[i]
-            prior_p=newSplineY[i]*(bias1*bias2) # biases added in the picture
-            intraInRangeCount +=1
-            ############# THIS HAS TO BE interactionCount-1 ##################
-            p_val=scsp.bdtrc(interxn.hitCount-1,observedIntraInRangeSum,prior_p)
-            p_vals.append(p_val)
-
-        elif interxn.getType(distLowThres,distUpThres)=='intraShort' and not interOnly:
-            prior_p=1.0
+        elif interxn.getType(distLowThres,distUpThres)=='intraInRange':
+            intraInRangeCount +=1 
             p_val=1.0
-            intraVeryProximalCount +=1
-            p_vals.append(p_val)
-
-        elif interxn.getType(distLowThres,distUpThres)=='intraLong' and not interOnly:
-            # out of range bigger than distUpThres
-            # use the prior of the baseline intra-chr interaction probability
-            prior_p=1.0 #baselineIntraChrProb*(bias1*bias2)  # biases added in the picture
-            p_val=scsp.bdtrc(interxn.hitCount-1,observedIntraAllSum,prior_p)
-            intraOutOfRangeCount +=1
-            p_vals.append(p_val)
-
-        else:
-            if allReg or interOnly:
-                #prior_p=baselineIntraChrProb
-                prior_p=baselineInterChrProb*(bias1*bias2) # biases added in the picture
+            if not interOnly:
+                # make sure the interaction distance is covered by the probability bins
+                distToLookUp=max(interxn.distance,min(x))
+                distToLookUp=min(distToLookUp,max(x))
+                i=min(bisect.bisect_left(splineX, distToLookUp),len(splineX)-1)
+                #prior_p=newSplineY[i]
+                prior_p=newSplineY[i]*(bias1*bias2) # biases added in the picture
                 ############# THIS HAS TO BE interactionCount-1 ##################
-                p_val=scsp.bdtrc(interxn.hitCount-1,observedInterAllSum,prior_p)
-                interCount +=1
-                p_vals.append(p_val)
+                p_val=scsp.bdtrc(interxn.hitCount-1,observedIntraInRangeSum,prior_p)
+            p_vals.append(p_val)
+
+        elif interxn.getType(distLowThres,distUpThres)=='intraShort': # regardless of whether interOnly is true or not 
+            p_val=1.0
+            intraVeryProximalCount +=1 
+            p_vals.append(p_val)
+
+        elif interxn.getType(distLowThres,distUpThres)=='intraLong': # regardless of whether interOnly is true or not 
+            p_val=1.0
+            intraOutOfRangeCount +=1 
+            p_vals.append(p_val)
+            
+        # what remains for below are pairs with >0 bias values and that are inter           
+        elif interxn.type=='inter' and (allReg or interOnly): #CHANGED 
+            #prior_p=baselineIntraChrProb   
+            prior_p=baselineInterChrProb*(bias1*bias2) # biases added in the picture
+            ############# THIS HAS TO BE interactionCount-1 ##################
+            p_val=scsp.bdtrc(interxn.hitCount-1,observedInterAllSum,prior_p)
+            interCount +=1 
+            p_vals.append(p_val)
+
+        else: #ADDED all of this and below  - when the interxn is inter but only intrachrs wanted (allReg==False and interOnly==False)
+            p_val=1.0
+            interCount +=1 
+            p_vals.append(p_val)
+
     # END for
     infile.close()
 
     # Do the BH FDR correction 
     if allReg:
         q_vals=myStats.benjamini_hochberg_correction(p_vals, possibleInterAllCount+possibleIntraAllCount)
-        sys.stderr.write("possibleInterAllCount+possibleIntraAllCount " + repr(possibleInterAllCount+possibleIntraAllCount)+"\n")
+        sys.stderr.write("possibleInterAllCount+possibleIntraInRangeCount " + repr(possibleInterAllCount+possibleIntraInRangeCount)+"\n")
     elif interOnly:
         q_vals=myStats.benjamini_hochberg_correction(p_vals, possibleInterAllCount)
-        sys.stderr.write("possibleInterAllCount+possibleIntraAllCount " + repr(possibleInterAllCount)+"\n")
+        sys.stderr.write("possibleInterAllCount " + repr(possibleInterAllCount)+"\n")
     else:
         q_vals=myStats.benjamini_hochberg_correction(p_vals, possibleIntraInRangeCount)
         sys.stderr.write("possibleIntraInRangeCount " + repr(possibleIntraInRangeCount)+"\n")
@@ -695,7 +703,7 @@ def read_All_Interactions(infilename,biasDic):
                 # every pair should already be in the dictionary with a zero interaction count
                 dictkey=str(interxn.chr1)+'-'+str(min(interxn.mid1,interxn.mid2))+'-'+str(max(interxn.mid1,interxn.mid2))
                 if not dictkey in possiblePairsPerDistance:
-                    if not (str(interxn.chr1)==str(interxn.chr2) and interxn.mid1==interxn.mid2): #NEW #NEW #NEW 
+                    if not (str(interxn.chr1)==str(interxn.chr2) and interxn.mid1==interxn.mid2): 
                         sys.exit("FitHiC encountered an unexpected fragment pair in the interactionCounts file %s" % dictkey)
                     continue
                 else:
@@ -828,7 +836,7 @@ def plot_qvalues(q_values,minFDR,maxFDR,increment,figname):
     significantTicks=[0 for i in range(len(qvalTicks))]
     qvalBins=[-1 for i in range(len(q_values))]
     for i, q in enumerate(q_values):
-        if math.isnan(q): q=1 #make sure NaNs are set to 1 #NEW #NEW #NEW
+        if math.isnan(q): q=1 #make sure NaNs are set to 1 
         qvalBins[i]=int(math.floor(q/increment))
     
     for i in range(len(qvalBins)):
