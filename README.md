@@ -106,7 +106,7 @@ The -f argument is used to pass in a full path to what we deem a 'fragments file
    separated by space or tab. All possible fragments need to be listed
    in this file.  One example file would look like below (excluding
    the header which is not a part of input):
-| chr |  extraField | fragmentMid|marginalizedContactCount|mappable? (0/1)
+| chr |  extraField | fragmentMid|marginalizedContactCount|mappable? (0/1)|
 |---|---|---|---|---|
 | 1 | 0 | 15000|234|1
 |1|0|25000|0|0
@@ -123,7 +123,7 @@ The interactions file contains a list of mid-range contacts between the
    or tab. Only the fragment pairs with non-zero contact counts are
    listed in this file.  One example file would look like below
    (excluding the header which is not a part of input):
-| chr1 |  fragmentMid1 | chr2|fragmentMid2|contactCount
+| chr1 |  fragmentMid1 | chr2|fragmentMid2|contactCount|
 |---|---|---|---|---|
 | 1 | 15000 | 1|35000|23
 |1|15000|1|55000|12
@@ -247,7 +247,7 @@ following names:
 
 The first file will report the results of equal occupancy binning in
 five fields. An example of which is shown below:
-| avgGenomicDist| contactProbability | standardError|noOfLocusPairs|totalOfContactCounts
+| avgGenomicDist| contactProbability | standardError|noOfLocusPairs|totalOfContactCounts|
 |---|---|---|---|---|
 | 20077 | 2.38e-05 |2.11e-06|210|19574
 | 20228  | 1.88e-05 |1.44e-06|268|19662
@@ -257,7 +257,7 @@ The second file will have the exact same lines as in the input file
 that contains the list of mid-range contacts. This input file had 5
 fields as described above. The output from each step will append two
 more columns to these fields, namely p-value and q-value.
-| chr1 |  fragmentMid1 | chr2|fragmentMid2|contactCount|p-value|q-value
+| chr1 |  fragmentMid1 | chr2|fragmentMid2|contactCount|p-value|q-value|
 |---|---|---|---|---|---|---|
 | 1 | 15000 | 1|35000|23|1.000000e+00   |1.000000e+00
 |1|15000|1|55000|12|2.544592e-02|1.202603e-01
