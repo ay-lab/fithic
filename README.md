@@ -123,6 +123,7 @@ The interactions file contains a list of mid-range contacts between the
    or tab. Only the fragment pairs with non-zero contact counts are
    listed in this file.  One example file would look like below
    (excluding the header which is not a part of input):
+ 
 | chr1 |  fragmentMid1 | chr2|fragmentMid2|contactCount|
 |---|---|---|---|---|
 | 1 | 15000 | 1|35000|23
