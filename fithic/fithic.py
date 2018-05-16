@@ -19,7 +19,7 @@ import bisect
 import gzip
 
 
-from pylab import *
+#from pylab import *
 from random import *
 from scipy.stats.mstats import mquantiles
 import myStats
@@ -112,10 +112,10 @@ def main():
     # Set to True for generating plots and False for omitting them
     if options.visual==True:
         # imports related to matplotlib to generate plots
-        import matplotlib
-        matplotlib.use('Agg')
-        import matplotlib.pyplot as plt
-        from matplotlib.ticker import ScalarFormatter, FormatStrFormatter
+        #import matplotlib
+        #matplotlib.use('Agg')
+        #import matplotlib.pyplot as plt
+        #from matplotlib.ticker import ScalarFormatter, FormatStrFormatter
         #### matplotlib fontsize settings
         plt.rcParams['font.size']=17
         plt.rcParams['axes.labelsize']='x-large'
@@ -142,6 +142,7 @@ def main():
     global chromosome_region
     global outdir
     global visual
+    print("HI")
     noOfBins=options.noOfBins # 100 by default 
     distUpThres=options.distUpThres # -1 by default, means no upper bound
     distLowThres=options.distLowThres # -1 by default, means no lower bound
@@ -176,10 +177,12 @@ def main():
     if options.biasfile!='none':
         biasDic=read_ICE_biases(options.biasfile)
     sortedInteractions=read_All_Interactions(options.intersfile,biasDic)
-
+    print("HI")
     ### DO THE FIRST PASS ###
     # calculate priors using original fit-hic and plot with standard errors
     x,y,yerr=calculate_Probabilities(sortedInteractions,[0 for i in range(len(sortedInteractions))],libname+".fithic_pass1")
+    print(x)
+    print(y)
     # now fit spline to the data 
     splineXinit,splineYinit,splineResidual,isOutlier,splineFDRxinit,splineFDRyinit=fit_Spline(x,y,yerr,options.intersfile,sortedInteractions,biasDic,libname+".spline_pass1",1)
 
@@ -352,7 +355,7 @@ def fit_Spline(x,y,yerr,infilename,sortedInteractions,biasDic,figname,passNo):
             p_val=1.0
             p_vals.append(p_val)
 
-        elif interxn.getType(distLowThres,distUpThres)=='intraInRange' and not interOnly: 
+        elif interxn.getType()=='intraInRange' and not interOnly: 
             # make sure the interaction distance is covered by the probability bins
             distToLookUp=max(interxn.distance,min(x))
             distToLookUp=min(distToLookUp,max(x))
@@ -364,13 +367,13 @@ def fit_Spline(x,y,yerr,infilename,sortedInteractions,biasDic,figname,passNo):
             p_val=scsp.bdtrc(interxn.hitCount-1,observedIntraInRangeSum,prior_p)
             p_vals.append(p_val)
 
-        elif interxn.getType(distLowThres,distUpThres)=='intraShort' and not interOnly:
+        elif interxn.getType()=='intraShort' and not interOnly:
             prior_p=1.0
             p_val=1.0
             intraVeryProximalCount +=1
             p_vals.append(p_val)
 
-        elif interxn.getType(distLowThres,distUpThres)=='intraLong' and not interOnly:
+        elif interxn.getType()=='intraLong' and not interOnly:
             # out of range bigger than distUpThres
             # use the prior of the baseline intra-chr interaction probability
             prior_p=1.0 #baselineIntraChrProb*(bias1*bias2)  # biases added in the picture
@@ -634,7 +637,7 @@ def read_All_Interactions(infilename,biasDic):
     infile =gzip.open(infilename, 'r')
     for line in infile:
         words=line.rstrip().split()
-        interxn=myUtils.Interaction([words[0], int(words[1]), words[2], int(words[3])])
+        interxn=myUtils.Interaction([words[0], int(words[1]), words[2], int(words[3])],distLowThres, distUpThres, int(words[4]))
         interxn.setCount(int(words[4]))
         chrIndex1=chrList.index(interxn.chr1)
         chrIndex2=chrList.index(interxn.chr2)
@@ -662,7 +665,7 @@ def read_All_Interactions(infilename,biasDic):
         else: # any type of intra
             observedIntraAllSum +=interxn.hitCount
             observedIntraAllCount +=1
-            if interxn.getType(distLowThres,distUpThres)=='intraInRange':
+            if interxn.getType()=='intraInRange':
                 minObservedGenomicDist=min(minObservedGenomicDist,interxn.distance)
                 maxObservedGenomicDist=max(maxObservedGenomicDist,interxn.distance)
                 # every pair should already be in the dictionary with a zero interaction count
@@ -822,6 +825,6 @@ def plot_qvalues(q_values,minFDR,maxFDR,increment,figname):
     return [qvalTicks,significantTicks]
 
 
-#if __name__ == "__main__":
-#    main()
+if __name__ == "__main__":
+    main()
 

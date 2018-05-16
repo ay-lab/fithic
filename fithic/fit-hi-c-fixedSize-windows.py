@@ -1,8 +1,6 @@
 #!/usr/bin/env python
 '''
-Created on Jan 29, 2014
-
-Modified to take ICE biases into account
+Created on Mar 05, 2013
 
 @author: ferhat ay
 '''
@@ -17,7 +15,6 @@ matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 from matplotlib.ticker import ScalarFormatter, FormatStrFormatter
 from pylab import *
-from scipy.stats.mstats import mquantiles
 from scipy import *
 from scipy.interpolate import Rbf, UnivariateSpline
 from scipy import optimize
@@ -28,9 +25,7 @@ from random import *
 import myStats
 import myUtils
 import gzip
-
 from sklearn.isotonic import IsotonicRegression
-
 
 #### Define utility functions
 ## function for calculating a power-law fit
@@ -74,17 +69,16 @@ def main():
             help="File containing the list of midpoints (or start indices) of the fragments/windows/meta-fragments for the reference genome." )
     parser.add_option("-i", "--interactions", dest="intersfile",
             help="File containing the list of contact counts between fragment/window/meta-fragment pairs.")
-    parser.add_option("-t", "--biases", dest="biasfile",
-                      help="OPTIONAL: biases calculated by ICE for each locus are read from BIASFILE")
     parser.add_option("-r", "--resolution", dest="resolution",type="int",
                       help="Length of fixed-size genomic windows used to process the data. E.x. 10000")
     parser.add_option("-l", "--lib", dest="libname",
-                      help="OPTIONAL: A prefix (generally the name of the library) that is going to be used for output file names. DEFAULT is HiC")
+                      help="OPTIONAL: A prefix (generally the name of the library) that is going to be used for output file names.")
     parser.add_option("-b", "--noOfBins", dest="noOfBins", type="int",
                       help="OPTIONAL: Number of equal-occupancy bins to process the data. Default is 100")
     parser.add_option("-p", "--passes", dest="noOfPasses",type="int",
                       help="OPTIONAL: Number of passes after the initial spline fit. DEFAULT is 2 (spline-1 and spline-2).")
-    parser.add_option("-m", "--mappabilityThres", dest="mappabilityThreshold", type="int", help="OPTIONAL: Minimum number of contacts per locus that has to exist to call it mappable. DEFAULT is 1.")
+    parser.add_option("-m", "--mappabilityThres", dest="mappabilityThreshold", type="int",
+                      help="OPTIONAL: Minimum number of contacts per locus that has to exist to call it mappable. DEFAULT is 1.")
     parser.add_option("-U", "--upperbound", dest="distUpThres", type="int",
                       help="OPTIONAL: Upper bound on the mid-range distances. DEFAULT no limit.")
     parser.add_option("-L", "--lowerbound", dest="distLowThres", type="int",
@@ -97,7 +91,7 @@ def main():
                       action="store_true", dest="verbose")
     parser.add_option("-q", "--quiet",
                       action="store_false", dest="verbose")
-    parser.set_defaults(verbose=True, useBinning=True, noOfBins=100, distLowThres=-1, distUpThres=-1, mappabilityThreshold=1,noOfPasses=2,libname="",biasfile='none')
+    parser.set_defaults(verbose=True, useBinning=True, noOfBins=100, distLowThres=-1, distUpThres=-1, mappabilityThreshold=1,noOfPasses=2,libname="")
     (options, args) = parser.parse_args()
     if len(args) != 0:
         parser.error("incorrect number of arguments")
@@ -119,16 +113,11 @@ def main():
     noOfPasses=options.noOfPasses
     resolution=options.resolution
     
-
     mainDic={} # given a distance this dictionary will return [Npairs,TotalContactCount]
     # read the mandatory input files -f and -i
     (mainDic,noOfFrags)=generate_FragPairs(mainDic,options.fragsfile)
     #for i in range(0,maxPossibleGenomicDist+1,resolution):
     #   print str(i)+"\t"+str(mainDic[i][0])
-
-    biasDic={}
-    if options.biasfile!='none':
-        biasDic=read_ICE_biases(options.biasfile)
 
     # read contacts in sparse form
     mainDic=read_All_Interactions(mainDic,options.intersfile,noOfFrags)
@@ -145,11 +134,9 @@ def main():
     # calculate priors using original fit-hic and plot with standard errors
     print("\n\t\tSPLINE FIT PASS 1 (spline-1) \n"),
     x,y,yerr=calculate_Probabilities(mainDic,libname+".fithic_pass1")
-    print(x)
-    print(y)
 
     # now fit spline to the data using power-law residual by improving it  <residualFactor> times
-    splineXinit,splineYinit,splineResidual=fit_Spline(mainDic,x,y,yerr,options.intersfile,libname+".spline_pass1",biasDic) 
+    splineXinit,splineYinit,splineResidual=fit_Spline(mainDic,x,y,yerr,options.intersfile,libname+".spline_pass1")
 
     ### DO THE REFINEMENT ON THE NULL AS MANY STEPS AS DESIRED ###
     #for i in range(2,1+noOfPasses):
@@ -160,61 +147,10 @@ def main():
     print("\nExecution of fit-hic completed successfully. \n\n"),
     return # from main
 
-def read_ICE_biases(infilename):
-    sys.stderr.write("\n\nReading ICE biases. \n")
-    biasDic={}
-    
-    rawBiases=[]
-    infile =gzip.open(infilename, 'r')
-    for line in infile:
-        words=line.rstrip().split()
-        chr=words[0]; midPoint=int(words[1]); bias=float(words[2])
-        if bias!=1.0:
-            rawBiases.append(bias)
-    infile.close()
-    #sys.stderr.write("\n\nReading ICE biases. \n")
-    botQ,med,topQ=mquantiles(rawBiases,prob=[0.05,0.5,0.95])
-    sys.stderr.write("5th quantile of biases: "+str(botQ)+"\n")
-    sys.stderr.write("50th quantile of biases: "+str(med)+"\n")
-    sys.stderr.write("95th quantile of biases: "+str(topQ)+"\n")
-
-    #m,v=myStats.meanAndVariance(rawBiases)
-    #sd=math.sqrt(v)
-    #sys.stderr.write(str(m)+"\t"+str(v)+"\t"+str(sd)+"\n")
-    
-    #normFactor=sum(rawBiases)/len(rawBiases)
-    infile =gzip.open(infilename, 'r')
-    totalC=0
-    discardC=0
-    for line in infile:
-        words=line.rstrip().split()
-        chr=words[0]; midPoint=int(words[1]); bias=float(words[2])
-        # extra conditions
-        #if bias<(botQ/2.0):
-        if bias<0.5:
-            bias=-1 #botQ
-            discardC+=1
-        elif bias>2:
-            bias=-1 #topQ
-            discardC+=1
-        #
-        totalC+=1
-        if chr not in biasDic:
-            biasDic[chr]={}
-        if midPoint not in biasDic[chr]:
-            biasDic[chr][midPoint]=bias
-    infile.close()
-    sys.stderr.write("Out of " + str(totalC) + " loci " +str(discardC) +" were discarded with biases not in range [0.5 2]\n\n" )
-
-    return biasDic # from read_ICE_biases
-
-
-
-
 def calculate_Probabilities(mainDic,outfilename):
     print("\nCalculating probability means and standard deviations by equal-occupancy binning of contact counts\n"),
     print("------------------------------------------------------------------------------------\n"),
-    outfile=open(outfilename+'.res'+str(resolution)+'.txt', 'w')
+    outfile=open(outfilename+'.txt', 'w')
 
     ## total interaction count to put on top of the plot
     #totalInteractionCountForPlot=0
@@ -278,6 +214,7 @@ def calculate_Probabilities(mainDic,outfilename):
             yerr.append(float(se_p))
             pairCounts.append(noOfPairsForBin)
             interactionTotals.append(interactionTotalForBin)
+            
             print "%d" % n+ "\t" + "%f" % avgDistance + "\t"+"%.2e" % meanProbabilityObsv + "\t"\
                 + "%.2e" % se_p +"\t" +"%d" % noOfPairsForBin +"\t" +"%d" % interactionTotalForBin
             # reset counts
@@ -321,7 +258,7 @@ def read_All_Interactions(mainDic,contactCountsFile,noOfFrags):
         #ch1='chr'+ch1
         #ch2='chr'+ch2
         contactCount=float(contactCount)
-        interxn=myUtils.Interaction([ch1, int(mid1), ch2, int(mid2)], distLowThres, distUpThres, contactCount)
+        interxn=myUtils.Interaction([ch1, int(mid1), ch2, int(mid2)])
         interxn.setCount(contactCount)
         count+=1
 
@@ -333,11 +270,10 @@ def read_All_Interactions(mainDic,contactCountsFile,noOfFrags):
         else: # any type of intra
             observedIntraAllSum +=interxn.hitCount
             observedIntraAllCount +=1
-            if interxn.getType()=='intraInRange':
+            if interxn.getType(distLowThres,distUpThres)=='intraInRange':
                 minObservedGenomicDist=min(minObservedGenomicDist,interxn.distance)
                 maxObservedGenomicDist=max(maxObservedGenomicDist,interxn.distance)
-                if interxn.distance in mainDic:
-                    mainDic[interxn.distance][1]+=contactCount
+                mainDic[interxn.distance][1]+=contactCount
                 observedIntraInRangeSum +=interxn.hitCount
                 observedIntraInRangeCount +=1
         # END else
@@ -428,14 +364,13 @@ def generate_FragPairs(mainDic,infilename): # lowMappThres
 
     return (mainDic,noOfFrags) # return from generate_FragPairs
 
-def fit_Spline(mainDic,x,y,yerr,infilename,outfilename,biasDic):
-    
+def fit_Spline(mainDic,x,y,yerr,infilename,outfilename):
     print("\nFit a univariate spline to the probability means\n"),
     print("------------------------------------------------------------------------------------\n"),
     #print("baseline intra-chr probability: " + repr(baselineIntraChrProb)+ "\n"),
 
     # maximum residual allowed for spline is set to min(y)^2
-    splineError=min(y)*min(y) 
+    splineError=min(y)*min(y)
 
     # use fitpack2 method -fit on the real x and y from equal occupancy binning
     ius = UnivariateSpline(x, y, s=splineError)
@@ -456,10 +391,10 @@ def fit_Spline(mainDic,x,y,yerr,infilename,outfilename,biasDic):
             splineX.append(i)
     # END for
     splineY=ius(splineX)
-
-    
     ir = IsotonicRegression(increasing=False)
     newSplineY = ir.fit_transform(splineX, splineY)
+
+
     ### Now newSplineY holds the monotonic contact probabilities
     residual =sum([i*i for i in (y - ius(x))])
 
@@ -488,62 +423,45 @@ def fit_Spline(mainDic,x,y,yerr,infilename,outfilename,biasDic):
     plt.xlabel('Genomic distance (log scale)')
     #plt.xlim([20000,100000])
     plt.xlim([min(x),max(x)])
-    plt.savefig(outfilename+'.res'+str(resolution)+'.png')
+    plt.savefig(outfilename+'.png')
     sys.stderr.write("Plotting %s" % outfilename + ".png\n")
 
     # NOW write the calculated pvalues and corrected pvalues in a file
-    infile =gzip.open(infilename, 'r')
+    infile =open(infilename, 'r')
     intraInRangeCount=0
     intraOutOfRangeCount=0
     intraVeryProximalCount=0
     interCount=0
-    discardCount=0
     print("lower bound on mid-range distances  "+ repr(distLowThres) + ", upper bound on mid-range distances  " + repr(distUpThres) +"\n"),
     p_vals=[]
     q_vals=[]
     for line in infile:
         words=line.rstrip().split()
-        interxn=myUtils.Interaction([words[0], int(words[1]), words[2], int(words[3])], distLowThres, distUpThres)
+        interxn=myUtils.Interaction([words[0], int(words[1]), words[2], int(words[3])])
         interxn.setCount(float(words[4]))
-        chr1=words[0]
-        chr2=words[2]
-        midPoint1=int(words[1])
-        midPoint2=int(words[3])
-        
-        bias1=1.0; bias2=1.0;  # assumes there is no bias to begin with
-        # if the biasDic is not null sets the real bias values
-        if len(biasDic)>0:
-            if chr1 in biasDic and midPoint1 in biasDic[chr1]:
-                bias1=biasDic[chr1][midPoint1]
-            if chr2 in biasDic and midPoint2 in biasDic[chr2]:
-                bias2=biasDic[chr2][midPoint2]
-    
-        if bias1==-1 or bias2==-1:
-            p_val=1.0
-            discardCount+=1
-        elif interxn.type=='intra':
-            if interxn.getType()=='intraInRange':
+        if interxn.type=='intra':
+            if interxn.getType(distLowThres,distUpThres)=='intraInRange':
                 # make sure the interaction distance is covered by the probability bins
                 distToLookUp=max(interxn.distance,min(x))
                 distToLookUp=min(distToLookUp,max(x))
                 i=min(bisect.bisect_left(splineX, distToLookUp),len(splineX)-1)
-                prior_p=newSplineY[i]*(bias1*bias2) # biases added in the picture
+                prior_p=newSplineY[i]
                 p_val=scsp.bdtrc(interxn.hitCount-1,observedIntraInRangeSum,prior_p)
                 intraInRangeCount +=1
-            elif interxn.getType()=='intraShort':
+            elif interxn.getType(distLowThres,distUpThres)=='intraShort':
                 prior_p=1.0
                 p_val=1.0
                 intraVeryProximalCount +=1
-            elif interxn.getType()=='intraLong':
+            elif interxn.getType(distLowThres,distUpThres)=='intraLong':
                 ## out of range distance
                 ## use the prior of the baseline intra-chr interaction probability
-                prior_p=baselineIntraChrProb*(bias1*bias2)  # biases added in the picture
+                prior_p=baselineIntraChrProb
                 p_val=scsp.bdtrc(interxn.hitCount-1,observedIntraAllSum,prior_p)
                 intraOutOfRangeCount +=1
             # END if
         else: # inter
             #prior_p=normalizedInterChrProb
-            prior_p=interChrProb*(bias1*bias2) # biases added in the picture
+            prior_p=interChrProb
             ############# THIS HAS TO BE interactionCount-1 ##################
             p_val=scsp.bdtrc(interxn.hitCount-1,observedInterAllSum,prior_p)
             interCount +=1
@@ -554,37 +472,32 @@ def fit_Spline(mainDic,x,y,yerr,infilename,outfilename,biasDic):
     infile.close()
 
     # Do the BH FDR correction
-    ## This below line was INCORRECTLY overcorrecting pvalues - commented out June 13th, 2017 by Ferhat
-    #q_vals=myStats.benjamini_hochberg_correction(p_vals, possibleInterAllCount+possibleIntraAllCount)
-    q_vals=myStats.benjamini_hochberg_correction(p_vals, possibleIntraInRangeCount)
+    q_vals=myStats.benjamini_hochberg_correction(p_vals, possibleInterAllCount+possibleIntraAllCount)
+    #q_vals=myStats.benjamini_hochberg_correction(p_vals, possibleIntraInRangeCount)
     #print("possibleIntraInRangeCount " + repr(possibleIntraInRangeCount)+"\n"),
 
-    infile =gzip.open(infilename, 'r')
-    outfile =gzip.open(outfilename+'.res'+str(resolution)+'.significances.txt.gz', 'w')
+    infile =open(infilename, 'r')
+    outfile =open(outfilename+'.significances.txt', 'w')
     print("Writing p-values and q-values to file %s" % outfilename + ".significances.txt\n"),
-    print("Number of pairs discarded due to bias not in range [0.5 2]\n"),
-    outfile.write("chr1\tfragmentMid1\tchr2\tfragmentMid2\tcontactCount\tp-value\tq-value\tbias1\tbias2\n")
+    outfile.write("chr1\tfragmentMid1\tchr2\tfragmentMid2\tcontactCount\tp-value\tq-value\n")
     count=0
     for line in infile:
         words=line.rstrip().split()
-        chr1=words[0]
+        chrNo1=words[0]
         midPoint1=int(words[1])
-        chr2=words[2]
+        chrNo2=words[2]
         midPoint2=int(words[3])
         interactionCount=int(words[4])
         p_val=p_vals[count]
         q_val=q_vals[count]
-        bias1=biasDic[chr1][midPoint1]
-        bias2=biasDic[chr2][midPoint2]
-
-        #if chr1==chr2: # intra
+        #if chrNo1==chrNo2: # intra
         #   interactionDistance=abs(midPoint1-midPoint2) # dist
         #   if myUtils.in_range_check(interactionDistance,distLowThres,distUpThres):
-        #       outfile.write("%s\t%d\t%s\t%d\t%d\t%e\t%e\n" % (str(chr1),midPoint1,str(chr2),midPoint2,interactionCount,p_val,q_val))
+        #       outfile.write("%s\t%d\t%s\t%d\t%d\t%e\t%e\n" % (str(chrNo1),midPoint1,str(chrNo2),midPoint2,interactionCount,p_val,q_val))
         #else:
-        #   outfile.write("%s\t%d\t%s\t%d\t%d\t%e\t%e\n" % (str(chr1),midPoint1,str(chr2),midPoint2,interactionCount,p_val,q_val))
+        #   outfile.write("%s\t%d\t%s\t%d\t%d\t%e\t%e\n" % (str(chrNo1),midPoint1,str(chrNo2),midPoint2,interactionCount,p_val,q_val))
 
-        outfile.write("%s\t%d\t%s\t%d\t%d\t%e\t%e\t%.3f\t%.3f\n" % (str(chr1),midPoint1,str(chr2),midPoint2,interactionCount,p_val,q_val,bias1,bias2))
+        outfile.write("%s\t%d\t%s\t%d\t%d\t%e\t%e\n" % (str(chrNo1),midPoint1,str(chrNo2),midPoint2,interactionCount,p_val,q_val))
         count+=1
     # END for - printing pvals and qvals for all the interactions
     outfile.close()
