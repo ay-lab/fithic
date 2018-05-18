@@ -106,20 +106,14 @@ class Interaction:
     def __init__(self):
         self.data = []
 
-    def __init__(self, locusPair,distLowThres, distUpThres, hitCount):
+    def __init__(self, locusPair):
         self.chr1=locusPair[0]
         self.mid1=int(locusPair[1])
         self.chr2=locusPair[2]
         self.mid2=int(locusPair[3])
-        self.hitCount=hitCount
         if self.chr1==self.chr2:
+            self.type='intra'
             self.distance=abs(self.mid1-self.mid2)
-            if (distLowThres==-1 or (distLowThres>-1 and self.distance >distLowThres)) and (distUpThres==-1 or (distUpThres>-1 and self.distance <= distUpThres)):
-                self.type='intraInRange'
-            elif (distLowThres>-1 and self.distance <= distLowThres):
-                self.type='intraShort'
-            elif (distUpThres>-1 and self.distance > distUpThres):
-                self.type='intraLong'
         else:
             self.type='inter'
 
@@ -131,14 +125,19 @@ class Interaction:
         self.pval=float(x)
     def setQval(self,x):
         self.qval=float(x)
-    def getType(self):
+    def getType(self,distLowThres,distUpThres):
+        if self.type == 'inter':
+            return self.type
+        if (distLowThres==-1 or (distLowThres>-1 and self.distance >distLowThres)) and\
+            (distUpThres==-1 or (distUpThres>-1 and self.distance <= distUpThres)):
+            self.type='intraInRange'
+        elif (distLowThres>-1 and self.distance <= distLowThres):
+            self.type='intraShort'
+        elif (distUpThres>-1 and self.distance > distUpThres):
+            self.type='intraLong'
         return self.type
-    def getCount(self):
-        return self.hitCount
-    def getDistance(self):
-        return self.distance
-    def setDistance(self,x):
-        self.distance =x
+
+        #if self.chr1==min(self.chr1,self.chr2):
                 
 ################### CLASS Locus ##############################################
 ####  This class is a container for loci in general and for Hi-C data.

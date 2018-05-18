@@ -87,3 +87,57 @@ Bug Fixes:
 independent
 __________________________________________________________________
 
+fithic_1.1.0.tgz - 1/11/2018
+-------------------------------
+Bug Fixes:
+1. Modified file parser to accept decimal's such that it works 
+with hicpro2fithic.py script
+__________________________________________________________________
+
+fithic_1.1.1.tgz - 1/11/2018
+-------------------------------
+Bug Fixes:
+1. Thought of better fix to the problem addressed in 1.1.0
+__________________________________________________________________
+
+fithic_1.1.2.tgz - 02/05/2018
+-------------------------------
+Bug Fixes:
+1. Fixed issue with optional import of matplotlib and pylab
+2. Made input compression agnostic (you don't have to gzip input
+files anymore! But we still highly recommend it!)
+
+Special thanks to aakashsur for all the ideas!
+__________________________________________________________________
+
+fithic_1.1.3.tgz - 02/20/2018
+-------------------------------
+Bug Fixes:
+1. Fixed a persistent and vastly annoying bug with -x All 
+and -x intersOnly and p-values
+2. Makes default value of -l option 'fithic' so files are
+not hidden any longer
+3. Makes default value of -o option './FITHICOUTPUT' so 
+users don't lose their output to the abyss
+4. Attempted to fix matplotlib plotting issues per aakashsur's
+issues. Unclear if it will work for all matplotlib versions.
+Still an area of active work.
+
+Updates:
+1. README updated - it's pretty now! check it out!
+2. utils/ folder added to fithic contains two scripts
+    1. hicpro2fithic.py - a Python script to convert 
+    hicpro output to input for fithic. Also found in the
+    hicpro github
+    2. Create_Fragments_File.py - a Python script to 
+    automatically generate the fragsfile for Hi-C
+    data given a chromsome sizes file and a 
+    resolution for the data
+3. Added whole genome dataset to tests/ folder to test
+for interchromosomal interactions as well
+4. Added parasite dataset to tests/ folder to test for
+edge cases
+
+Special thanks to Vikash and Moshe for pointing out and helping 
+debug bug #1!
+__________________________________________________________________

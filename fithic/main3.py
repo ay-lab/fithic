@@ -332,14 +332,16 @@ def read_Interactions(contactCountsFile, biasFile, outliers=None):
             ch1,mid1,ch2,mid2,contactCount=lines.split()
             #create the interaction
             contactCount=float(contactCount)
-            interxn=myUtils.Interaction([ch1, int(mid1), ch2, int(mid2)], distLowThres, distUpThres, contactCount)
-            if interxn.getType()=='inter':
+            interxn=myUtils.Interaction([ch1, int(mid1), ch2, int(mid2)])
+            interxn.setCount(contactCount)
+            interactionType = interxn.getType(distLowThres,distUpThres)
+            if interactionType=='inter':
                 observedInterAllSum += interxn.getCount()
                 observedInterAllCount +=1
             else: # any type of intra
                 observedIntraAllSum +=interxn.getCount()
                 observedIntraAllCount +=1
-                if interxn.getType()=='intraInRange':
+                if interactionType=='intraInRange':
                     #interxn.setDistance(interxn.getDistance()+(1000-interxn.getDistance()) % 1000)
                     minObservedGenomicDist=min(minObservedGenomicDist,interxn.getDistance())
                     maxObservedGenomicDist=max(maxObservedGenomicDist,interxn.getDistance())
@@ -739,9 +741,10 @@ def fit_Spline(mainDic,x,y,yerr,infilename,outfilename,biasDic,outliers,observed
     for line in infile:
         ch1,mid1,ch2,mid2,contactCount=line.rstrip().split()
         contactCount = float(contactCount)
-        interxn=myUtils.Interaction([ch1, int(mid1), ch2, int(mid2)],distLowThres, distUpThres, contactCount)
+        interxn=myUtils.Interaction([ch1, int(mid1), ch2, int(mid2)])
+        interxn.setCount(contactCount)
         mid1 = int(mid1); mid2 = int(mid2)
-
+        interactionType = interxn.getType(distLowThres,distUpThres)
         bias1=1.0; bias2=1.0;  # assumes there is no bias to begin with
         # if the biasDic is not null sets the real bias values
         if biasDic:
@@ -750,22 +753,22 @@ def fit_Spline(mainDic,x,y,yerr,infilename,outfilename,biasDic,outliers,observed
             if chr2 in biasDic and midPoint2 in biasDic[chr2]:
                 bias2=biasDic[chr2][midPoint2]
 
-        if (bias1<0 or bias2<0) and interxn.getType()!='inter':
+        if (bias1<0 or bias2<0) and interactionType !='inter':
             prior_p=1.0
             p_val=1.0
             discardCount+=1
-        elif interxn.getType()=='intraInRange' and not interOnly:
+        elif interactionType=='intraInRange' and not interOnly:
             distToLookUp=max(interxn.getDistance(),min(x))
             distToLookUp=min(distToLookUp,max(x))
             i=min(bisect.bisect_left(splineX, distToLookUp),len(splineX)-1)
             prior_p=newSplineY[i]*(bias1*bias2) 
             p_val=scsp.bdtrc(interxn.getCount()-1,observedIntraInRangeSum,prior_p)
             intraInRangeCount +=1
-        elif interxn.getType()=='intraShort' and not interOnly:
+        elif interactionType =='intraShort' and not interOnly:
             prior_p=1.0
             p_val=1.0
             intraVeryProximalCount += 1
-        elif interxn.getType()=='intraLong' and not interOnly:
+        elif interactionType =='intraLong' and not interOnly:
             prior_p=1.0
             p_val=scsp.bdtrc(interxn.getCount()-1, observedIntraAllSum,prior_p)
             intraOutOfRangeCount += 1
