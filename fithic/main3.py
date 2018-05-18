@@ -41,14 +41,18 @@ def parse_args(args):
                       help="REQUIRED: where the output files\
                       will be written", required=True)
 
+    parser.add_argument("-r", "--resolution", dest="resolution", type=int,
+                      help="REQUIRED: Use this option if the fragments file \
+                      is fixed size binned data). DEFAULT is None", required=True)
+    
     parser.add_argument("-t", "--biases", dest="biasfile",\
-                        help="OPTIONAL: biases calculated by\
+                        help="REQUIRED: biases calculated by\
                         ICE or KR norm for each locus are read from BIASFILE",\
                         required=False)
 
     parser.add_argument("-p", "--passes", dest="noOfPasses",type=int,\
                         help="OPTIONAL: number of passes after the initial\
-                        (before) fit. If 'fast' default is 0, otherwise 1",
+                        (before) fit. Default is 0",
                         required=False)
 
     parser.add_argument("-b", "--noOfBins", dest="noOfBins", type=int, \
@@ -81,14 +85,11 @@ def parse_args(args):
                       help="OPTIONAL: use this flag for generating plots. \
                       DEFAULT is False.", required=False)
 
-    parser.add_argument("-x", "--chromosome_region", dest="chromosome_region",
+    parser.add_argument("-x", "--contactType", dest="contactType",
                       help="OPTIONAL: use this flag to determine which chromosomal \
                       regions to study (intraOnly, interOnly, All) \
                       DEFAULT is intraOnly", required=False)
 
-    parser.add_argument("-r", "--resolution", dest="resolution", type=int,
-                      help="OPTIONAL: Use this option if the fragments file \
-                      is fixed size binned data). DEFAULT is None", required=False)
 
     parser.add_argument("-V", "--version", action="version",version=versionStr)
 
@@ -133,28 +134,41 @@ def main():
     else:
         print("Output path being used from %s" % outputPath)
 
-    ##PARSE OPTIONAL ARGUMENTS##
-    biasFile = None
-    if args.biasfile:
+    resolution = args.resolution
+    if args.resolution == 0:
+        print("Fixed size data not being used.")
+    elif args.resolution > 0:
+        print("Fixed size option detected... Fast version of FitHiC will be used")
+        print("Resolution is %s kb" % (resolution/1000))
+    else:
+        print("INVALID RESOLUTION ARGUMENT DETECTED")
+        print("Please make sure the given resolution is a positive number greater than zero")
+        print("User-given resolution: %s" % resolution)
+        sys.exit(2)
+
+    if args.biasfile is not None:
         if os.path.isfile(args.biasfile):
             print("Reading bias file from: %s" % args.biasfile)
         else:
             print("Bias file not found")
             sys.exit(2)
-        biasFile = args.biasfile
     else:
-        print("No bias file being used")
+        print("No bias file")
+    biasFile = args.biasfile 
+    
+    ##PARSE OPTIONAL ARGUMENTS##
 
     noOfPasses = 0
     if args.noOfPasses:
         noOfPasses = args.noOfPasses
-    print("The number of passes after spline fitting is %s" % noOfPasses)
+    print("The number of passes after initial spline fitting is %s" % noOfPasses)
 
     noOfBins = 100
     if args.noOfBins:
         noOfBins = args.noOfBins
     print("The number of bins is %s" % noOfBins)
 
+    global mappThres
     mappThres = 1
     if args.mappabilityThreshold:
         mappThres = args.mappabilityThreshold
@@ -188,7 +202,7 @@ def main():
 
     global interOnly
     global allReg
-    chromosome_region=args.chromosome_region
+    chromosome_region=args.contactType
     if chromosome_region==None:
         chromosome_region='intraOnly'
     interOnly=False
@@ -206,32 +220,6 @@ def main():
     else:
         print("Invalid Option. Only options are 'All', 'interOnly', or 'intraOnly'")
         sys.exit(2)
-
-    resolution = 0
-    if args.resolution:
-        resolution = args.resolution
-        print("Fixed size option detected... Fast version of FitHiC will be used")
-        print("Resolution is %s kb" % (resolution/1000))
-    else:
-        print("Fixed size data not being used.")
-
-    interOnly=False
-    allReg=False
-    if args.chromosome_region:
-        if args.chromosome_region == "All":
-            allReg=True
-            print("All Regions (inter and intrachromosomal)  will be read")
-        elif args.chromosome_region == "interOnly":
-            interOnly=True
-            print("Only interchromosomal interactions will be read")
-        elif chromosome_region == "intraOnly":
-            interOnly=False
-            allReg=False
-            print("Only intrachromosmal interactions will be read")
-        else:
-            print("Invalid Option. Only options are 'All', 'interOnly', or 'intraOnly'")
-    else:
-        print("Only intrachromosmal interactions will be read")
 
     print("All arguments processed. Running FitHiC now...")
     print("=========================")
@@ -292,21 +280,24 @@ def main():
     print("Spline fit Pass 1 starting...")
     outliers = SortedList()
     #fit a smooth spline to the bin values, and compute and write p values/q values
-    splineXinit,splineYinit,residual,outliers= fit_Spline(mainDic,x,y,yerr,contactCountsFile,os.path.join(outputPath,libName+".spline_pass1"),biasDic, outliers, observedIntraInRangeSum, possibleIntraInRangeCount, resolution)
+    splineXinit,splineYinit,residual,outliers= fit_Spline(mainDic,x,y,yerr,contactCountsFile,os.path.join(outputPath,libName+".spline_pass1"),biasDic, outliers, observedIntraInRangeSum, possibleIntraInRangeCount, observedIntraAllSum, resolution)
     splinefit1en = time.time()
     print("Spline fit Pass 1 completed. Time took %s" % (splinefit1en-splinefit1st))
-
-    if not resolution:
+    
+    if resolution:
+        pass 
+    else:
         ### DO THE NEXT PASSES IF REQUESTED ###
-        for i in range(2,2+noOfPasses):
-
+        for i in range(2,1+noOfPasses):
+            print("\n")
+            print("\n")
             (mainDic,observedInterAllSum,observedIntraAllSum,observedIntraInRangeSum) = read_Interactions(contactCountsFile, biasFile, outliers)
             binStats = makeBinsFromInteractions(mainDic, noOfBins, observedIntraInRangeSum)
             (binStats,noOfFrags, maxPossibleGenomicDist, possibleIntraInRangeCount, interChrProb, baselineIntraChrProb)= generate_FragPairs3(binStats, fragsFile, resolution)
             (x,y,yerr)= calculateProbabilities2(mainDic, binStats,resolution,os.path.join(outputPath,libName+".fithic_pass"+str(i)), observedIntraInRangeSum)
             splinefitst=time.time()
             print("Spline fit Pass %s starting..." % i)
-            splineX,splineY,residual,outliers= fit_Spline(mainDic,x,y,yerr,contactCountsFile,os.path.join(outputPath,libName+".spline_pass"+str(i)),biasDic, outliers, observedIntraInRangeSum, possibleIntraInRangeCount, resolution)
+            splineX,splineY,residual,outliers= fit_Spline(mainDic,x,y,yerr,contactCountsFile,os.path.join(outputPath,libName+".spline_pass"+str(i)),biasDic, outliers, observedIntraInRangeSum, possibleIntraInRangeCount, observedIntraAllSum, resolution)
             splinefiten = time.time()
             print("Spline fit Pass %s completed. Time took %s" % (i,(splinefit1en-splinefit1st)))
     print("=========================")
@@ -326,7 +317,7 @@ def read_Interactions(contactCountsFile, biasFile, outliers=None):
     observedIntraAllCount=0 #notused
     observedIntraInRangeSum=0 #used
     observedIntraInRangeCount=0 #notused
-    minObservedGenomicDist=float("inf")#notused
+    minObservedGenomicDist=float('inf') #notused
     maxObservedGenomicDist=0 #notused
 
     linectr = 0
@@ -341,7 +332,7 @@ def read_Interactions(contactCountsFile, biasFile, outliers=None):
             ch1,mid1,ch2,mid2,contactCount=lines.split()
             #create the interaction
             contactCount=float(contactCount)
-            interxn=myUtils.Interaction([ch1, int(mid1), ch2, int(mid2)],distLowThres, distUpThres, contactCount)
+            interxn=myUtils.Interaction([ch1, int(mid1), ch2, int(mid2)], distLowThres, distUpThres, contactCount)
             if interxn.getType()=='inter':
                 observedInterAllSum += interxn.getCount()
                 observedInterAllCount +=1
@@ -349,6 +340,7 @@ def read_Interactions(contactCountsFile, biasFile, outliers=None):
                 observedIntraAllSum +=interxn.getCount()
                 observedIntraAllCount +=1
                 if interxn.getType()=='intraInRange':
+                    #interxn.setDistance(interxn.getDistance()+(1000-interxn.getDistance()) % 1000)
                     minObservedGenomicDist=min(minObservedGenomicDist,interxn.getDistance())
                     maxObservedGenomicDist=max(maxObservedGenomicDist,interxn.getDistance())
                     if interxn.getDistance() not in mainDic:
@@ -365,7 +357,7 @@ def read_Interactions(contactCountsFile, biasFile, outliers=None):
         log.write("Observed, Intra-chr in range: pairs= "+str(observedIntraInRangeCount) +"\t totalCount= "+str(observedIntraInRangeSum)+"\n")
         log.write("Observed, Intra-chr all: pairs= "+str(observedIntraAllCount) +"\t totalCount= "+str(observedIntraAllSum)+"\n")
         log.write("Observed, Inter-chr all: pairs= "+str(observedInterAllCount) +"\t totalCount= "+str(observedInterAllSum)+"\n")
-        log.write("Range of observed genomic distances [%d %d]" % (minObservedGenomicDist,maxObservedGenomicDist) + "\n"),
+        log.write("Range of observed genomic distances [%s %s]" % (minObservedGenomicDist,maxObservedGenomicDist) + "\n"),
         log.write("\n")
     return (mainDic,observedInterAllSum,observedIntraAllSum,observedIntraInRangeSum) # from read_Interactions
 
@@ -429,11 +421,10 @@ def makeBinsFromInteractions(mainDic,noOfBins, observedIntraInRangeSum):
         else:
             lb = max(bins[binIdx-1])+1
         ub = bins[binIdx][-1]
-        binStats[binIdx]=[(lb, ub), 0, 0, 0, 0, 0, bins[binIdx]]
+        binStats[binIdx]=[(lb, ub), 0, 0, 0, 0, 0, bins[binIdx], 0]
         for dists in bins[binIdx]:
             binStats[binIdx][2]+=mainDic[dists][1]
-            #binStats[binIdx][3]+=(float(dists/distScaling))
-            #print(binStats[binIdx][4])
+            #binStats[binIdx][3]+=(dists/distScaling)
     with open(logfile, 'a') as log:
         log.write("Equal occupancy bins generated\n")
         log.write("\n")
@@ -462,10 +453,12 @@ def generate_FragPairs3(binStats, fragsfile, resolution):
         for line in infile:
             words=line.split()
             currChr=words[0]
-            currMid=words[2]
+            currMid=int(words[2])
+            currHit=int(words[3])
             if currChr not in allFragsDic:
                 allFragsDic[currChr]=[]
-            allFragsDic[currChr].append(currMid)
+            if currHit>=mappThres:
+                allFragsDic[currChr].append(currMid)
 
     if resolution:
         noOfFrags=0
@@ -494,8 +487,8 @@ def generate_FragPairs3(binStats, fragsfile, resolution):
                     binTracker+=1
                     if binTracker not in binStats:
                         binTracker-=1
-                #RUNBY
-                currBin[1]+=npairs
+                currBin[1]+=1
+                currBin[7]+=npairs
                 currBin[3]+=(float(intxnDistance/distScaling)*npairs)
                 if myUtils.in_range_check(intxnDistance,distLowThres,distUpThres):
                     possibleIntraInRangeCountPerChr += 1
@@ -507,7 +500,6 @@ def generate_FragPairs3(binStats, fragsfile, resolution):
             possibleIntraInRangeCount += possibleIntraInRangeCountPerChr
         possibleInterAllCount/=2
         try:
-            #RUNBY
             interChrProb=1.0/possibleInterAllCount
         except:
             print("No inter-chromosomal interactions found")
@@ -519,33 +511,44 @@ def generate_FragPairs3(binStats, fragsfile, resolution):
         for ch in allFragsDic:
             noOfFrags += len(allFragsDic[ch])
 
-        for ch in allFragsDic:
+        for ch in sorted(allFragsDic.keys()):
             countIntraPairs = 0
             fragsPerChr = sorted(allFragsDic[ch])
             templen = len(fragsPerChr)
             possibleInterAllCount += (noOfFrags-templen)*templen
-            binTracker = 0
             possibleIntraInRangeCountPerChr = 0
             for x in range(templen):
+                binTracker = 0
                 d = 0
                 for y in range(x+1,templen):
                     intxnDistance = abs(float(fragsPerChr[x])-float(fragsPerChr[y]))
+                    if myUtils.in_range_check(intxnDistance, distLowThres,distUpThres):
+                        possibleIntraInRangeCountPerChr += 1 
+                    else:
+                        continue
                     maxPossibleGenomicDist = max(maxPossibleGenomicDist, intxnDistance)
                     npairs = templen-d
                     d+=1
                     currBin = binStats[binTracker]
                     minOfBin = currBin[0][0]
                     maxOfBin = currBin[0][1]
-                    if minOfBin<=intxnDistance<=maxOfBin:
-                        pass
-                    else:
-                        binTracker+=1
+                    while not (minOfBin<=intxnDistance<=maxOfBin):
+                        binTracker += 1
                         if binTracker not in binStats:
                             binTracker-=1
-                    currBin[1]+=npairs
+                            currBin = binStats[binTracker]
+                            minOfBin = currBin[0][0]
+                            maxOfBin = currBin[0][1]
+                            break
+                        else:
+                            currBin = binStats[binTracker]
+                            minOfBin = currBin[0][0]
+                            maxOfBin = currBin[0][1]
+                    #currBin = binStats[binTracker]
+                    #currBin[1]+=npairs
+                    currBin[7]+=npairs
+                    currBin[1]+=1
                     currBin[3]+=float(intxnDistance/distScaling)*npairs
-                    if myUtils.in_range_check(intxnDistance,distLowThres,distUpThres):
-                        possibleIntraInRangeCountPerChr += 1
                     possibleIntraAllCount += 1
             with open(logfile, 'a') as log:
                 log.write("Chromosome " +repr(ch) +",\t"+str(templen) +" mappable fragments, \t"+str(possibleIntraInRangeCountPerChr)\
@@ -644,6 +647,8 @@ def calculateProbabilities2(mainDic,binStats,resolution,outfilename,observedIntr
         #3: Sumoveralldistances in this bin in distScaling vals
         #4: avg CC
         #5: avg distance
+        #6: bins
+        #7: no. of possible pairs w/ proper dist
 
     for i in range(len(binStats)):
         currBin = binStats[i]
@@ -651,7 +656,7 @@ def calculateProbabilities2(mainDic,binStats,resolution,outfilename,observedIntr
         sumDistB4Scaling = currBin[3]
         possPairsInRange = currBin[1]
         avgCC = (1.0*sumCC/possPairsInRange)/observedIntraInRangeSum
-        avgDist = distScaling*(sumDistB4Scaling/possPairsInRange)
+        avgDist = distScaling*(sumDistB4Scaling/currBin[7])
         currBin[4]=avgCC
         currBin[5]=avgDist
         y.append(avgCC)
@@ -670,7 +675,7 @@ def calculateProbabilities2(mainDic,binStats,resolution,outfilename,observedIntr
         pairCounts.append(possPairsInRange)
         interactionTotals.append(sumCC)
 
-    print("Writing %s \n" % nameoffile)
+    print("Writing %s" % nameoffile)
     outfile.write("avgGenomicDist\tcontactProbability\tstandardError\tnoOfLocusPairs\ttotalOfContactCounts\n")
     for i in range(len(x)):
         outfile.write("%d" % x[i] + "\t"+"%.2e" % y[i]+ "\t" + "%.2e" % yerr[i] + "\t" +"%d" % pairCounts[i] + "\t" +"%d" % interactionTotals[i]+"\n")
@@ -681,18 +686,23 @@ def calculateProbabilities2(mainDic,binStats,resolution,outfilename,observedIntr
     return [x,y,yerr] # from calculateProbabilities2
 
 
-def fit_Spline(mainDic,x,y,yerr,infilename,outfilename,biasDic,outliers,observedIntraInRangeSum, possibleIntraInRangeCount, resolution):
+def fit_Spline(mainDic,x,y,yerr,infilename,outfilename,biasDic,outliers,observedIntraInRangeSum, possibleIntraInRangeCount, observedIntraAllSum, resolution):
     with open(logfile, 'a') as log:
         log.write("\nFitting a univariate spline to the probability means\n"),
         log.write("------------------------------------------------------------------------------------\n"),
     #print("baseline intra-chr probability: " + repr(baselineIntraChrProb)+ "\n"),
-
+    #print(x)
+    for i in range(1,len(x)):
+        if x[i]<=x[i-1]:
+            print("ERROR")
+            print(x[i-1])
+            print(x[i])
+    #print(y)
     # maximum residual allowed for spline is set to min(y)^2
     splineError=min(y)*min(y)
 
     # use fitpack2 method -fit on the real x and y from equal occupancy binning
     ius = UnivariateSpline(x, y, s=splineError)
-
     tempMaxX=max(x)
     tempMinX=min(x)
     tempList=sorted([dis for dis in mainDic]) #TODO check if this is ok? since previously mainDic had ALL intxn distances (not just nonzero ones)
@@ -703,11 +713,14 @@ def fit_Spline(mainDic,x,y,yerr,infilename,outfilename,biasDic,outliers,observed
         if tempMinX<=i<=tempMaxX:
             splineX.append(i)
     splineY=ius(splineX)
+    #print(splineY)
+    #print(yerr)
 
 
     ir = IsotonicRegression(increasing=False)
     newSplineY = ir.fit_transform(splineX,splineY)
-
+    #print(newSplineY)
+    #sys.exit(2)
     residual =sum([i*i for i in (y - ius(x))])
 
     if visual==True:
@@ -721,16 +734,9 @@ def fit_Spline(mainDic,x,y,yerr,infilename,outfilename,biasDic,outliers,observed
     intraVeryProximalCount=0
     interCount=0
     discardCount=0
-    #print("lower bound on mid-range distances  "+ repr(distLowThres) + ", upper bound on mid-range distances  " + repr(distUpThres) +"\n"),
     p_vals=[]
     q_vals=[]
-    linectr = 0
-    outlierListPos = 0
     for line in infile:
-        if len(outliers) != 0:
-            if linectr == outliers[outlierListPos]:
-                outlierListPos+=1
-                continue
         ch1,mid1,ch2,mid2,contactCount=line.rstrip().split()
         contactCount = float(contactCount)
         interxn=myUtils.Interaction([ch1, int(mid1), ch2, int(mid2)],distLowThres, distUpThres, contactCount)
@@ -769,32 +775,6 @@ def fit_Spline(mainDic,x,y,yerr,infilename,outfilename,biasDic,outliers,observed
                 p_val=scsp.bdtrc(interxn.getCount()-1,observedInterAllSum,prior_p)
                 interCount += 1
         p_vals.append(p_val)
-        linectr+=1
-        """
-        elif interxn.type=='intra':
-            if interxn.getType(distLowThres,distUpThres)=='intraInRange':
-                # make sure the interaction distance is covered by the probability bins
-            elif interxn.getType(distLowThres,distUpThres)=='intraShort':
-                prior_p=1.0
-                p_val=1.0
-                intraVeryProximalCount +=1
-            elif interxn.getType(distLowThres,distUpThres)=='intraLong':
-                ## out of range distance
-                ## use the prior of the baseline intra-chr interaction probability
-                prior_p=baselineIntraChrProb*(bias1*bias2)  # biases added in the picture
-                p_val=scsp.bdtrc(interxn.hitCount-1,observedIntraAllSum,prior_p)
-                intraOutOfRangeCount +=1
-            # END if
-        else: # inter
-            #prior_p=normalizedInterChrProb
-            prior_p=interChrProb*(bias1*bias2) # biases added in the picture
-            ############# THIS HAS TO BE interactionCount-1 ##################
-            p_val=scsp.bdtrc(interxn.hitCount-1,observedInterAllSum,prior_p)
-            interCount +=1
-        #
-        p_vals.append(p_val)
-        linectr += 1
-        """
     infile.close()
 
     outlierThres = 0
@@ -845,10 +825,12 @@ def fit_Spline(mainDic,x,y,yerr,infilename,outfilename,biasDic,outliers,observed
     if visual == True:
         print("TODO")
         #TODO ADD VISUAL SHIT
+
     with open(logfile, 'a') as log:
         log.write("Spline successfully fit\n"),
         log.write("\n"),
         log.write("\n"),
+
     return [splineX, newSplineY, residual, outliers] # from fit_Spline
 
 if __name__ == "__main__":

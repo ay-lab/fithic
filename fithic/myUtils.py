@@ -137,6 +137,8 @@ class Interaction:
         return self.hitCount
     def getDistance(self):
         return self.distance
+    def setDistance(self,x):
+        self.distance =x
                 
 ################### CLASS Locus ##############################################
 ####  This class is a container for loci in general and for Hi-C data.

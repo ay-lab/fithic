@@ -142,7 +142,6 @@ def main():
     global chromosome_region
     global outdir
     global visual
-    print("HI")
     noOfBins=options.noOfBins # 100 by default 
     distUpThres=options.distUpThres # -1 by default, means no upper bound
     distLowThres=options.distLowThres # -1 by default, means no lower bound
@@ -177,12 +176,11 @@ def main():
     if options.biasfile!='none':
         biasDic=read_ICE_biases(options.biasfile)
     sortedInteractions=read_All_Interactions(options.intersfile,biasDic)
-    print("HI")
     ### DO THE FIRST PASS ###
     # calculate priors using original fit-hic and plot with standard errors
     x,y,yerr=calculate_Probabilities(sortedInteractions,[0 for i in range(len(sortedInteractions))],libname+".fithic_pass1")
-    print(x)
-    print(y)
+    #print(x)
+    #print(y)
     # now fit spline to the data 
     splineXinit,splineYinit,splineResidual,isOutlier,splineFDRxinit,splineFDRyinit=fit_Spline(x,y,yerr,options.intersfile,sortedInteractions,biasDic,libname+".spline_pass1",1)
 
@@ -191,7 +189,6 @@ def main():
         x,y,yerr=calculate_Probabilities(sortedInteractions,isOutlier,libname+".fithic_pass"+repr(i))
         splineX,splineY,splineResidual,isOutlier,splineFDRx,splineFDRy=fit_Spline(x,y,yerr,options.intersfile,sortedInteractions,biasDic,libname+".spline_pass"+repr(i),i)
 
-    print
     sys.stderr.write("\nExecution of fit-hic completed successfully. \n\n") 
     return # from main
 
@@ -249,6 +246,9 @@ def fit_Spline(x,y,yerr,infilename,sortedInteractions,biasDic,figname,passNo):
 
     # assume residualFactor==-1: 
     splineError=min(y)*min(y)
+    
+    #print(x)
+    #sys.exit(2)
 
     # use fitpack2 method -fit on the real x and y from equal occupancy binning
     ius = UnivariateSpline(x, y, s=splineError)
@@ -262,6 +262,8 @@ def fit_Spline(x,y,yerr,infilename,sortedInteractions,biasDic,figname,passNo):
     tempMaxX=max(x)
     tempMinX=min(x)
     tempList=sorted(list(set([int(i[0]) for i in sortedInteractions])))
+    #print("TEMPLIST")
+    #print(tempList)
     splineX=[]
     ### The below for loop will make sure nothing is out of range of [min(x) max(x)]
     ### Therefore everything will be within the range where the spline is defined
@@ -269,14 +271,16 @@ def fit_Spline(x,y,yerr,infilename,sortedInteractions,biasDic,figname,passNo):
         if tempMinX<=i and i<=tempMaxX:
             splineX.append(i)
     # END for
+    
     #print len(splineX)
     splineY=ius(splineX)
-
+    #print(splineY)
 
 
     ir = IsotonicRegression(increasing=False)
     newSplineY = ir.fit_transform(splineX, splineY)
-
+    #print(newSplineY)
+    #sys.exit(2)
     residual =sum([i*i for i in (y - ius(x))])
 
     if visual==True:
@@ -335,7 +339,7 @@ def fit_Spline(x,y,yerr,infilename,sortedInteractions,biasDic,figname,passNo):
     q_vals=[]
     for line in infile:
         words=line.rstrip().split()
-        interxn=myUtils.Interaction([words[0], int(words[1]), words[2], int(words[3])])
+        interxn=myUtils.Interaction([words[0], int(words[1]), words[2], int(words[3])],distLowThres, distUpThres, int(words[4]))
         interxn.setCount(int(words[4]))
         chr1=words[0]
         chr2=words[2]
@@ -537,7 +541,7 @@ def calculate_Probabilities(sortedInteractions,isOutlier,figname):
     lastDistanceForBin=-1
     lastInteraction=lcount 
     lcount=0 # this will increase by eachrow in sortedInteractions
-
+    bins = []
     for eachrow in sortedInteractions:
         interactionDistance=eachrow[0]
         interactionCount=eachrow[1]
@@ -546,6 +550,8 @@ def calculate_Probabilities(sortedInteractions,isOutlier,figname):
         if noOfPairsForBin>0 and ((useBinning==False and lastDistanceForBin!=-1 and lastDistanceForBin!=interactionDistance) or\
             (useBinning==True and lastDistanceForBin!=-1 and interactionTotalForBinTermination >= desiredPerBin and\
             lastDistanceForBin!=interactionDistance) or lcount==lastInteraction): 
+            #print("BIN")
+            #print(bins)
 
             # calculate the things that need to be calculated
             avgDistance=(distanceTotalForBin/noOfPairsForBin)*distScaling
@@ -591,6 +597,7 @@ def calculate_Probabilities(sortedInteractions,isOutlier,figname):
         # END if
         interactionTotalForBinTermination +=interactionCount
         lcount +=1
+        bins.append(interactionDistance)
         lastDistanceForBin=interactionDistance
     # END for over sortedInteractions
 
