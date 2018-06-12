@@ -1,319 +1,786 @@
 #!/usr/bin/env python
 '''
-Created on June 11,2012
+Created on Jan 29, 2014 by Ferhat Ay
+Modified by Arya Kaul 2017-Present
 
-@author: ferhat
 '''
-### import statements ###
+
 import sys
-import os
 import math
 import time
 import numpy as np
 from scipy import *
 from scipy.interpolate import Rbf, UnivariateSpline
 from scipy import optimize
-from optparse import OptionParser
 import scipy.special as scsp
 import bisect
 import gzip
-
-
-from random import *
 from scipy.stats.mstats import mquantiles
+from scipy import stats
 import myStats
 import myUtils
-
-#new isotonic regression to avoid R dependency
 from sklearn.isotonic import IsotonicRegression
+from sortedcontainers import SortedList
+import os
+import argparse
+import matplotlib
+matplotlib.use('Agg')
+import matplotlib.pyplot as plt
+from matplotlib.ticker import ScalarFormatter, FormatStrFormatter, MaxNLocator
+from pylab import *
 
+versionStr = "You are using fithic version 2.0.0"
 
-##### global variables shared by functions ######
-chrList=[] # list of all chromosomes
-listOfMappableFrags=[] # list of all mappable fragments
-# dictkey should be chr-locus1-locus2 and the return values are [interactionDistance, interactionCount]
-possiblePairsPerDistance={} # dictionary of possible intra-chr pairs
+def parse_args(args):
+    parser = argparse.ArgumentParser(description="Check the help flag")
 
-# these are going to be the important numbers that we compute
-possibleInterAllCount=0
-observedInterAllCount=0
-observedInterAllSum=0
-# intra chromosomal interactions in range
-possibleIntraInRangeCount=0
-observedIntraInRangeCount=0
-observedIntraInRangeSum=0
-# all possible intra chromosomal interactions
-possibleIntraAllCount=0
-observedIntraAllCount=0
-observedIntraAllSum=0
+    parser.add_argument("-i", "--interactions", dest="intersfile",\
+                      help="REQUIRED: interactions between fragment pairs are \
+                      read from INTERSFILE", required=True)
 
-baselineIntraChrProb=0  # 1.0/possibleIntraAllCount
-baselineInterChrProb=0  # 1.0/possibleInterAllCount
+    parser.add_argument("-f", "--fragments", dest="fragsfile", \
+                      help="REQUIRED: midpoints (or start indices) \
+                      of the fragments are read from FRAGSFILE",\
+                      required=True)
 
-minObservedGenomicDist=500000000 # some number bigger than the biggest chromosome length
-maxObservedGenomicDist=0 
+    parser.add_argument("-o", "--outdir", dest="outdir", \
+                      help="REQUIRED: where the output files\
+                      will be written", required=True)
 
-#distScaling just avoids overflow - but is necessary for large genomes
-distScaling=10000.0 
-toKb=10**-3
-toMb=10**-6
-toProb=10**5
+    parser.add_argument("-r", "--resolution", dest="resolution", type=int,
+                      help="REQUIRED: If the files are fixed size, please \
+                      supply the resolution of the dataset here; otherwise, \
+                      please use a value of 0 if the data is not fixed size." \
+                      , required=True)
+    
+    parser.add_argument("-t", "--biases", dest="biasfile",\
+                        help="RECOMMENDED: biases calculated by\
+                        ICE or KR norm for each locus are read from BIASFILE",\
+                        required=False)
 
-### Parameters that can be played with for the SPLINE FIT
-overSample=5 # can be changed to have more/less overfitted splines
-####
-#########################
-versionStr="fit-hi-c version 1.1.3. \nA tool for assigning statistical confidence estimates to intra-chromosomal \ncontact maps produced by genome architecture assays. \n\nReleased on January 19, 2014. \nMethod developed by Ferhat Ay, Timothy Bailey and William Noble. \nImplemented by Ferhat Ay (ferhatay@uw.edu). \n\nCopyright (c), 2012, University of Washington. \nThis software is offered under an MIT license. \nFor details: http://opensource.org/licenses/MIT\n"
+    parser.add_argument("-p", "--passes", dest="noOfPasses",type=int,\
+                        help="OPTIONAL: number of spline passes to run\
+                        Default is 1",
+                        required=False)
 
+    parser.add_argument("-b", "--noOfBins", dest="noOfBins", type=int, \
+                      help="OPTIONAL: number of equal-occupancy (count) \
+                      bins. Default is 100", required=False)
+
+    parser.add_argument("-m", "--mappabilityThres", dest="mappabilityThreshold",\
+                      type=int, help="OPTIONAL: minimum number of hits per \
+                      locus that has to exist to call it mappable. DEFAULT is 1.",\
+                      required=False)
+
+    parser.add_argument("-l", "--lib", dest="libname", help="OPTIONAL: Name of the\
+                      library that is analyzed to be used for name of file prefixes \
+                      . DEFAULT is fithic",
+                      required=False)
+
+    parser.add_argument("-U", "--upperbound", dest="distUpThres", type=int,
+                      help="OPTIONAL: upper bound on the intra-chromosomal \
+                      distance range (unit: base pairs). DEFAULT no limit. \
+                      STRONGLY suggested to have a limit for large genomes,\
+                      such as human/mouse. ex. '1000000, 5000000, etc.'",
+                      required=False)
+
+    parser.add_argument("-L", "--lowerbound", dest="distLowThres", type=int,
+                      help="OPTIONAL: lower bound on the intra-chromosomal \
+                      distance range (unit: base pairs). DEFAULT no limit. \
+                      Suggested limit is 2x the resolution of the input files",
+                      required=False)
+
+    parser.add_argument("-v", "--visual", action="store_true", dest="visual",\
+                      help="OPTIONAL: use this flag for generating plots. \
+                      DEFAULT is False.", required=False)
+
+    parser.add_argument("-x", "--contactType", dest="contactType",
+                      help="OPTIONAL: use this flag to determine which chromosomal \
+                      regions to study (intraOnly, interOnly, All) \
+                      DEFAULT is intraOnly", required=False)
+
+    parser.add_argument("-V", "--version", action="version",version=versionStr)
+
+    return parser.parse_args()
 
 def main():
-    ### parse the command line arguments
-    usage = "usage: %prog [options]"
-    parser = OptionParser(usage=usage)
-    parser.add_option("-f", "--fragments", dest="fragsfile",
-                      help="midpoints (or start indices) of the fragments are read from FRAGSFILE")
-    parser.add_option("-i", "--interactions", dest="intersfile",
-                      help="interactions between fragment pairs are read from INTERSFILE")
-    parser.add_option("-o", "--outdir", dest="outdir",
-                      help="where the output files will be written")
-    parser.add_option("-t", "--biases", dest="biasfile",
-                      help="OPTIONAL: biases calculated by ICE for each locus are read from BIASFILE")
-    parser.add_option("-p", "--passes", dest="noOfPasses",type="int",
-                      help="OPTIONAL: number of passes after the initial (before) fit. DEFAULT is 1 (after)")
-    parser.add_option("-b", "--noOfBins", dest="noOfBins", type="int",
-                      help="OPTIONAL: number of equal-occupancy (count) bins. Default is 100")
-    parser.add_option("-m", "--mappabilityThres", dest="mappabilityThreshold", type="int",
-                      help="OPTIONAL: minimum number of hits per locus that has to exist to call it mappable. DEFAULT is 1.")
-    parser.add_option("-l", "--lib", dest="libname",
-                      help="OPTIONAL: Name of the library that is analyzed to be used for plots.")
-    parser.add_option("-U", "--upperbound", dest="distUpThres", type="int",
-                      help="OPTIONAL: upper bound on the intra-chromosomal distance range (unit: base pairs). DEFAULT no limit.")
-    parser.add_option("-L", "--lowerbound", dest="distLowThres", type="int",
-                      help="OPTIONAL: lower bound on the intra-chromosomal distance range (unit: base pairs). DEFAULT no limit.")
-    parser.add_option("-v", "--visual",
-                      action="store_true", dest="visual", help="OPTIONAL: use this flag for generating plots. DEFAULT is False.")
-    parser.add_option("-q", "--quiet",
-                      action="store_false", dest="visual", help="OPTIONAL: use this flag for omitting plots. DEFAULT behavior." )
-    parser.add_option("-V", "--version", action="store_true", dest="version",
-                      help=versionStr)
-    parser.add_option("-x", "--chromosome_region", dest="chromosome_region", 
-                      help="OPTIONAL: use this flag to determine which chromosomal regions to study (intraOnly, interOnly, All) \
-                      DEFAULT is intraOnly" )
-    parser.set_defaults(visual=False, noOfBins=100, distLowThres=-1, distUpThres=-1, mappabilityThreshold=1,noOfPasses=1,
-    discBinsize=5000,libname="fithic",biasfile='none', version=False, chromosome_region="intraOnly", outdir="./FITHICOUTPUT")
-    (options, args) = parser.parse_args()
-    if len(args) != 0:
-        parser.error("incorrect number of arguments")
-    if options.version==True:
-        print versionStr
-        return
+    args = parse_args(sys.argv[1:])
+    print("\n")
+    print("GIVEN FIT-HI-C ARGUMENTS")
+    print("=========================")
 
-    # Set to True for generating plots and False for omitting them
-    if options.visual==True:
-        # imports related to matplotlib to generate plots
-        global matplotlib
-        import matplotlib
-        matplotlib.use('Agg')
-        global plt
-        import matplotlib.pyplot as plt
-        global ScalarFormatter
-        global FormatStrFormatter 
-        global MaxNLocator
+    ##PARSE REQUIRED ARGUMENTS##
+    fragsFile = args.fragsfile
+    if os.path.exists(fragsFile):
+        print("Reading fragments file from: %s" % fragsFile)
+    else:
+        print("Fragment file not found")
+        sys.exit(2)
+    try:
+        fragsF = gzip.open(fragsFile, 'r')
+        fragsF.readline()
+    except:
+        print("Fragments file is not gzipped. Exiting now...")
+        sys.exit(2)
 
-        from matplotlib.ticker import ScalarFormatter, FormatStrFormatter, MaxNLocator
-        from pylab import *
-        #### matplotlib fontsize settings
-        #plt.rcParams['font.size']=17
-        plt.rcParams['axes.labelsize']='x-large'
-        plt.rcParams['xtick.labelsize']='large'
-        plt.rcParams['ytick.labelsize']='large'
-        plt.rcParams['figure.subplot.hspace']=0.4
-        plt.rcParams['figure.subplot.bottom']=0.12
-        plt.rcParams['figure.subplot.left']=0.15
-        plt.rcParams['figure.subplot.right']=0.94
-        plt.rcParams['figure.subplot.top']=0.92
-    ##
+    contactCountsFile = args.intersfile
+    if os.path.isfile(contactCountsFile):
+        print("Reading interactions file from: %s" % contactCountsFile)
+    else:
+        print("Interaction file not found")
+        sys.exit(2)
+    try:
+        contactCountsF = gzip.open(contactCountsFile, 'r')
+        contactCountsF.readline()
+    except:
+        print("Interactions file is not gzipped. Exiting now...")
 
-    global noOfBins
-    global distUpThres
+    outputPath = args.outdir
+    if not os.path.isdir(outputPath):
+        os.makedirs(outputPath)
+        print("Output path created %s" % outputPath)
+    else:
+        print("Output path being used from %s" % outputPath)
+
+    resolution = args.resolution
+    if args.resolution == 0:
+        print("Fixed size data not being used.")
+    elif args.resolution > 0:
+        print("Fixed size option detected... Fast version of FitHiC will be used")
+        print("Resolution is %s kb" % (resolution/1000))
+    else:
+        print("INVALID RESOLUTION ARGUMENT DETECTED")
+        print("Please make sure the given resolution is a positive number greater than zero")
+        print("User-given resolution: %s" % resolution)
+        sys.exit(2)
+
+    ##PARSE OPTIONAL ARGUMENTS##
+    
+    if args.biasfile is not None:
+        if os.path.isfile(args.biasfile):
+            print("Reading bias file from: %s" % args.biasfile)
+        else:
+            print("Bias file not found")
+            sys.exit(2)
+    else:
+        print("No bias file")
+    biasFile = args.biasfile 
+    
+
+    noOfPasses = 1
+    if args.noOfPasses:
+        noOfPasses = args.noOfPasses
+    print("The number of spline passes is %s" % noOfPasses)
+
+    noOfBins = 100
+    if args.noOfBins:
+        noOfBins = args.noOfBins
+    print("The number of bins is %s" % noOfBins)
+
+    global mappThres
+    mappThres = 1
+    if args.mappabilityThreshold:
+        mappThres = args.mappabilityThreshold
+    print("The number of reads required to consider an interaction is %s" % mappThres)
+
+    libName = "FitHiC"
+    if args.libname:
+        libName = args.libname
+    print("The name of the library for outputted files will be %s" % libName)
+
     global distLowThres
-    global useBinning
-    global libname
-    global mappabilityThreshold
-    global noOfPasses
-    global allReg
-    global interOnly
-    global discBinsize
-    global residualFactor
-    global chromosome_region
-    global outdir
+    global distUpThres
+    distUpThres = float("inf")
+    distLowThres = 0
+    if args.distUpThres:
+        distUpThres = args.distUpThres
+    if args.distLowThres:
+        distLowThres = args.distLowThres
+    print("Upper Distance threshold is %s" % distUpThres)
+    print("Lower Distance threshold is %s" % distLowThres)
+
     global visual
-    noOfBins=options.noOfBins # 100 by default 
-    distUpThres=options.distUpThres # -1 by default, means no upper bound
-    distLowThres=options.distLowThres # -1 by default, means no lower bound
-    mappabilityThreshold=options.mappabilityThreshold # 1 by default
-    useBinning=True # This is no more an option.
-    chromosome_region=options.chromosome_region
+    visual = False
+    if args.visual:
+        #### matplotlib fontsize settings
+        visual = True
+        print("Graphs will be outputted")
+
+    global interOnly
+    global allReg
+    chromosome_region=args.contactType
+    if chromosome_region==None:
+        chromosome_region='intraOnly'
     interOnly=False
     allReg=False
     if chromosome_region == "All":
+        print("All genomic regions will be analyzed")
         allReg=True
     elif chromosome_region == "interOnly":
+        print("Only inter-chromosomal regions will be analyzed")
         interOnly=True
     elif chromosome_region == "intraOnly":
+        print("Only intra-chromosomal regions will be analyzed")
         interOnly=False
         allReg=False
     else:
         print("Invalid Option. Only options are 'All', 'interOnly', or 'intraOnly'")
         sys.exit(2)
-    libname=options.libname
-    noOfPasses=options.noOfPasses
-    discBinsize=options.discBinsize
-    compareMethods=False
-    residualFactor=-1
-    outdir=options.outdir
-    if not os.path.exists(outdir):
-        os.makedirs(outdir)
-    visual=options.visual
 
+    print("All arguments processed. Running FitHiC now...")
+    print("=========================")
+    print("\n")
 
-    # read the mandatory input files -f and -i
-    generate_FragPairs(options.fragsfile)
-    biasDic={}
-    if options.biasfile!='none':
-        biasDic=read_ICE_biases(options.biasfile)
-    sortedInteractions=read_All_Interactions(options.intersfile,biasDic)
+    #########################PARSING COMPLETE############################################
 
-    ### DO THE FIRST PASS ###
-    # calculate priors using original fit-hic and plot with standard errors
-    x,y,yerr=calculate_Probabilities(sortedInteractions,[0 for i in range(len(sortedInteractions))],libname+".fithic_pass1")
-    # now fit spline to the data 
-    splineXinit,splineYinit,splineResidual,isOutlier,splineFDRxinit,splineFDRyinit=fit_Spline(x,y,yerr,options.intersfile,sortedInteractions,biasDic,libname+".spline_pass1",1)
+    possibleIntraInRangeCount=0 # count of all possible in range intra-chr fragpairs
+    observedIntraInRangeCount=0 # count of obs. in range intra-chr frags based on intxn file
+    observedIntraInRangeSum=0 # sum of all observed intra-chr read counts in range
 
-    ### DO THE NEXT PASSES IF REQUESTED ###
-    for i in range(2,2+noOfPasses):
-        x,y,yerr=calculate_Probabilities(sortedInteractions,isOutlier,libname+".fithic_pass"+repr(i))
-        splineX,splineY,splineResidual,isOutlier,splineFDRx,splineFDRy=fit_Spline(x,y,yerr,options.intersfile,sortedInteractions,biasDic,libname+".spline_pass"+repr(i),i)
+    possibleIntraAllCount=0 # Same as above, but without range restriction
+    observedIntraAllCount=0
+    observedIntraAllSum=0
 
-    print
-    sys.stderr.write("\nExecution of fit-hic completed successfully. \n\n") 
-    return # from main
+    possibleInterAllCount=0 # Same as above, note that the notion of distance thresholds
+                            # does not apply for interchr intxns
+    observedInterAllCount=0
+    observedInterAllSum=0
 
-def read_ICE_biases(infilename):
-    sys.stderr.write("\n\nReading ICE biases. \n")
-    biasDic={}
+    global baselineIntraChrProb
+    baselineIntraChrProb=0  # 1.0/possibleIntraAllCount
+    global interChrProb 
+    interChrProb=0 # 1.0/possibleInterAllCount
+
+    minObservedGenomicDist=float("inf")
+    maxObservedGenomicDist=0
+    maxPossibleGenomicDist=0
+
+    #distScaling just avoids overflow - but is necessary for large genomes
+    global distScaling
+    distScaling=1000000.0 #RUNBY
+
+    global toKb
+    global toMb
+    global toProb
+    toKb=10**-3
+    toMb=10**-6
+    toProb=10**5
+
+    #intermediate values outputted here
+    global logfile
+    logfile = os.path.join(outputPath, libName+".fithic.log")
+
+    ##maindic will be generated first using the interactions file only
+    mainDic={} # given a distance this dictionary will return [Npairs,TotalContactCount] for only those interactions present in the interactions file
+    (mainDic,observedInterAllSum,observedIntraAllSum,observedIntraInRangeSum) = read_Interactions(contactCountsFile, biasFile)
+    binStats = makeBinsFromInteractions(mainDic, noOfBins, observedIntraInRangeSum)
+
+    #Enumerate (fast version) or generate (otherwise) all possible pairs of fragments within the range of interest.
+    (binStats,noOfFrags, maxPossibleGenomicDist, possibleIntraInRangeCount, possibleInterAllCount, interChrProb, baselineIntraChrProb)= generate_FragPairs3(binStats, fragsFile, resolution)
+
+    #read and parse bias values for each locus from ICE or KR normalization output
+    if biasFile:
+        biasDic = read_biases(biasFile)
+    else:
+        biasDic = 0
+
+    #bin the data in desired number of bins, and for each bin, calculate the average genomic distance and average contact probability
+    (x,y,yerr)= calculateProbabilities2(mainDic, binStats,resolution,os.path.join(outputPath,libName+".fithic_pass1"), observedIntraInRangeSum)
+
+    splinefit1st=time.time()
+    print("Spline fit Pass 1 starting...")
+    outliersline = SortedList()
+    outliersdist = SortedList()
+    #fit a smooth spline to the bin values, and compute and write p values/q values
+    splineXinit,splineYinit,residual,outliersline, outliersdist, FDRXinit, FDRYinit= fit_Spline(mainDic,x,y,yerr,contactCountsFile,os.path.join(outputPath,libName+".spline_pass1"),biasDic, outliersline, outliersdist, observedIntraInRangeSum, possibleIntraInRangeCount, possibleInterAllCount, observedIntraAllSum, observedInterAllSum, resolution, 1)
+    print("Number of outliers is... %s" % len(outliersline))
+    splinefit1en = time.time()
+    print("Spline fit Pass 1 completed. Time took %s" % (splinefit1en-splinefit1st))
     
+    ### DO THE NEXT PASSES IF REQUESTED ###
+    for i in range(2,1+noOfPasses):
+        print("\n")
+        print("\n")
+        (mainDic,observedInterAllSum,observedIntraAllSum,observedIntraInRangeSum) = read_Interactions(contactCountsFile, biasFile, outliersline)
+        binStats = makeBinsFromInteractions(mainDic, noOfBins, observedIntraInRangeSum, outliersdist)
+        (binStats,noOfFrags, maxPossibleGenomicDist, possibleIntraInRangeCount,possibleInterAllCount, interChrProb, baselineIntraChrProb)= generate_FragPairs3(binStats, fragsFile, resolution)
+        (x,y,yerr)= calculateProbabilities2(mainDic, binStats,resolution,os.path.join(outputPath,libName+".fithic_pass"+str(i)), observedIntraInRangeSum)
+        splinefitst=time.time()
+        print("Spline fit Pass %s starting..." % i)
+        splineX,splineY,residual,outliersline, outliersdist, FDRX, FDRY= fit_Spline(mainDic,x,y,yerr,contactCountsFile,os.path.join(outputPath,libName+".spline_pass"+str(i)),biasDic, outliersline, outliersdist, observedIntraInRangeSum, possibleIntraInRangeCount, possibleInterAllCount, observedIntraAllSum, observedInterAllSum, resolution, i)
+        splinefiten = time.time()
+        print("Spline fit Pass %s completed. Time took %s" % (i,(splinefit1en-splinefit1st)))
+        if visual:
+            compare_Spline_FDR(FDRXinit, FDRYinit, FDRX, FDRY, os.path.join(outputPath, libName+".spline_FDR_comparison"),str(i))
+            compareFits_Spline(splineXinit, splineYinit, splineX, splineY, os.path.join(outputPath,libName+".spline_comparison"), str(i))
+    print("=========================")
+    print("Fit-Hi-C completed successfully")
+    print("\n")
+
+##FUNCTIONS START###
+
+def read_Interactions(contactCountsFile, biasFile, outliers=None):
+    mainDic={}
+    print("Reading the contact counts file to generate bins...")
+    startT = time.time()
+
+    observedInterAllSum=0 #used
+    observedIntraAllSum=0 #used
+    observedInterAllCount=0
+    observedIntraAllCount=0 #notused
+    observedIntraInRangeSum=0 #used
+    observedIntraInRangeCount=0 #notused
+    minObservedGenomicDist=float('inf') #notused
+    maxObservedGenomicDist=0 #notused
+
+    linectr = 0
+    outlierposctr = 0
+    #Loop through every line in the contactCountsFile
+    with gzip.open(contactCountsFile, 'rt') as f:
+        for lines in f:
+            if outliers != None and outlierposctr<len(outliers):
+                if linectr == outliers[outlierposctr]:
+                    linectr+=1
+                    outlierposctr+=1
+                    continue
+            ch1,mid1,ch2,mid2,contactCount=lines.split()
+            #create the interaction
+            contactCount=float(contactCount)
+            interxn=myUtils.Interaction([ch1, int(mid1), ch2, int(mid2)])
+            interxn.setCount(contactCount)
+            interactionType = interxn.getType(distLowThres,distUpThres)
+            if interactionType=='inter':
+                observedInterAllSum += interxn.getCount()
+                observedInterAllCount +=1
+            else: # any type of intra
+                observedIntraAllSum +=interxn.getCount()
+                observedIntraAllCount +=1
+                if interactionType=='intraInRange':
+                    #interxn.setDistance(interxn.getDistance()+(1000-interxn.getDistance()) % 1000)
+                    minObservedGenomicDist=min(minObservedGenomicDist,interxn.getDistance())
+                    maxObservedGenomicDist=max(maxObservedGenomicDist,interxn.getDistance())
+                    if interxn.getDistance() not in mainDic:
+                        mainDic[interxn.getDistance()] = [0,0]
+                    mainDic[interxn.getDistance()][1]+=interxn.getCount()
+                    observedIntraInRangeSum +=interxn.getCount()
+                    observedIntraInRangeCount +=1
+            linectr+=1
+    endT = time.time()
+    print("Interactions file read. Time took %s" % (endT-startT))
+    with open(logfile, 'w') as log:
+        log.write("\n\nInteractions file read successfully\n")
+        log.write("------------------------------------------------------------------------------------\n")
+        log.write("Observed, Intra-chr in range: pairs= "+str(observedIntraInRangeCount) +"\t totalCount= "+str(observedIntraInRangeSum)+"\n")
+        log.write("Observed, Intra-chr all: pairs= "+str(observedIntraAllCount) +"\t totalCount= "+str(observedIntraAllSum)+"\n")
+        log.write("Observed, Inter-chr all: pairs= "+str(observedInterAllCount) +"\t totalCount= "+str(observedInterAllSum)+"\n")
+        log.write("Range of observed genomic distances [%s %s]" % (minObservedGenomicDist,maxObservedGenomicDist) + "\n"),
+        log.write("\n")
+    return (mainDic,observedInterAllSum,observedIntraAllSum,observedIntraInRangeSum) # from read_Interactions
+
+def makeBinsFromInteractions(mainDic,noOfBins, observedIntraInRangeSum, outliersdist=None):
+    with open(logfile, 'a') as log:
+        log.write("Making equal occupancy bins\n")
+        log.write("------------------------------------------------------------------------------------\n")
+        noPerBin = observedIntraInRangeSum/noOfBins
+        log.write("Observed intra-chr read counts in range\t"+repr(observedIntraInRangeSum)+ "\nDesired number of contacts per bin\t" +repr(noPerBin)+",\nNumber of bins\t"+repr(noOfBins)+"\n")
+
+    # the following five lists will be the print outputs
+    interactionTotalForBinTermination=0
+    n=0 # bin counter so far
+    totalInteractionCountSoFar=0
+    distsToGoInAbin=[]
+    binFull=0
+    desiredPerBin=(observedIntraInRangeSum)/noOfBins
+    bins = []
+    for i in sorted(mainDic.keys()): #everything here is inrange by definition
+        totalInteractionCountSoFar+=mainDic[i][1]
+        # if one distance has more than necessary counts to fill a bin
+        if mainDic[i][1]>=desiredPerBin:
+            distsToGoInAbin.append(i)
+            interactionTotalForBinTermination=0
+            binFull=1
+        # if adding the next bin will fill the bin
+        elif interactionTotalForBinTermination+mainDic[i][1] >= desiredPerBin:
+            distsToGoInAbin.append(i)
+            interactionTotalForBinTermination=0
+            binFull=1
+        # if adding the next bin will not fill the bin
+        else:
+            distsToGoInAbin.append(i)
+            interactionTotalForBinTermination+=mainDic[i][1]
+        # if bin is already full
+        if binFull==1:
+            noOfPairsForBin=0
+            interactionTotalForBin=0
+            avgDistance=0
+            # dynamically update the desiredPerBin after each bin is full
+            n+=1
+            if n<noOfBins:
+                desiredPerBin=1.0*(observedIntraInRangeSum-totalInteractionCountSoFar)/(noOfBins-n)
+            bins.append(distsToGoInAbin)
+            interactionTotalForBinTermination=0
+            binFull=0
+            distsToGoInAbin=[]
+    #print(bins)
+    binStats = {}
+    for binIdx in range(len(bins)):
+        ##binStats
+        #0: range of distances in this bin
+        #1: no. of possible pairs w/in this range of distances
+        #2: sumoverallContactCounts
+        #3: Sumoveralldistances in this bin in distScaling vals
+        #4: avg CC
+        #5: avg distance
+        #6: bins
+        if binIdx == 0:
+            lb = 0
+        else:
+            lb = max(bins[binIdx-1])+1
+        ub = bins[binIdx][-1]
+        binStats[binIdx]=[(lb, ub), 0, 0, 0, 0, 0, bins[binIdx], 0]
+        for dists in bins[binIdx]:
+            binStats[binIdx][2]+=mainDic[dists][1]
+            #binStats[binIdx][3]+=(dists/distScaling)
+    
+    if outliersdist != None:
+        binTracker = 0
+        for i in range(len(outliersdist)):
+            intxnDistance = outliersdist[i]
+            currBin = binStats[binTracker]
+            minOfBin = currBin[0][0]
+            maxOfBin = currBin[0][1]
+            while not (minOfBin<=intxnDistance<=maxOfBin):
+                binTracker += 1
+                if binTracker not in binStats:
+                    binTracker-=1
+                    currBin = binStats[binTracker]
+                    minOfBin = currBin[0][0]
+                    maxOfBin = currBin[0][1]
+                    break
+                else:
+                    currBin = binStats[binTracker]
+                    minOfBin = currBin[0][0]
+                    maxOfBin = currBin[0][1]
+            currBin[7]-=1
+            currBin[1]-=1
+    
+    with open(logfile, 'a') as log:
+        log.write("Equal occupancy bins generated\n")
+        log.write("\n")
+    return binStats
+
+def generate_FragPairs3(binStats, fragsfile, resolution): 
+    if resolution:
+        with open(logfile, 'a') as log:
+            log.write("Looping through all possible fragment pairs in-range\n")
+            log.write("------------------------------------------------------------------------------------\n"),
+    else:
+        with open(logfile, 'a') as log:
+            log.write("Enumerating all possible fragment pairs in-range\n")
+            log.write("------------------------------------------------------------------------------------\n"),
+    startT = time.time()
+
+    minPossibleGenomicDist = float("inf")
+    maxPossibleGenomicDist = 0
+    possibleIntraAllCount = 0
+    possibleInterAllCount = 0
+    possibleIntraInRangeCount = 0
+    interChrProb = 0
+    baselineIntraChrProb = 0
+
+    allFragsDic={}
+    with gzip.open(fragsfile,'rt') as infile:
+        for line in infile:
+            words=line.split()
+            currChr=words[0]
+            currMid=int(words[2])
+            currHit=int(words[3])
+            if currChr not in allFragsDic:
+                allFragsDic[currChr]=[]
+            if currHit>=mappThres:
+                allFragsDic[currChr].append(currMid)
+
+    if resolution:
+        noOfFrags=0
+        maxFrags={}
+        
+        for ch in allFragsDic:
+            maxFrags[ch]=max([int(i)-resolution/2 for i in allFragsDic[ch]])
+            noOfFrags+=len(allFragsDic[ch])
+            maxPossibleGenomicDist=max(maxPossibleGenomicDist,maxFrags[ch])
+        
+        for ch in sorted(allFragsDic.keys()):
+            maxFrag=maxFrags[ch]
+            n=len(allFragsDic[ch])
+            d=0
+            binTracker = 0
+            possibleIntraInRangeCountPerChr = 0
+            for intxnDistance in range(0,int(maxFrag+1),resolution):
+                npairs = n-d
+                d+=1
+                if myUtils.in_range_check(intxnDistance,distLowThres,distUpThres):
+                    minPossibleGenomicDist = min(minPossibleGenomicDist, intxnDistance)
+                    possibleIntraInRangeCountPerChr += npairs
+                else:
+                    continue
+                currBin = binStats[binTracker]
+                minOfBin = currBin[0][0]
+                maxOfBin = currBin[0][1]
+                while not (minOfBin<=intxnDistance<=maxOfBin):
+                    binTracker += 1
+                    if binTracker not in binStats:
+                        binTracker-=1
+                        currBin = binStats[binTracker]
+                        minOfBin = currBin[0][0]
+                        maxOfBin = currBin[0][1]
+                        break
+                    else:
+                        currBin = binStats[binTracker]
+                        minOfBin = currBin[0][0]
+                        maxOfBin = currBin[0][1]
+                currBin[7]+=npairs
+                currBin[1]+=npairs
+                currBin[3]+=(float(intxnDistance/distScaling)*npairs)
+               # possibleIntraInRangeCountPerChr += npairs
+            possibleInterAllCount+=n*(noOfFrags-n)
+            possibleIntraAllCount+=(n*(n+1))/2 # n(n-1) if excluding self
+            with open(logfile, 'a') as log:
+                log.write("Chromosome " +repr(ch) +",\t"+str(n) +" mappable fragments, \t"+str(possibleIntraInRangeCountPerChr)\
+                +" possible intra-chr fragment pairs in range,\t" + str((noOfFrags-n)*n) +" possible inter-chr fragment pairs\n")
+            possibleIntraInRangeCount += possibleIntraInRangeCountPerChr
+        possibleInterAllCount/=2
+        try:
+            interChrProb=1.0/possibleInterAllCount
+        except:
+            interChrProb = 0
+        baselineIntraChrProb=1.0/possibleIntraAllCount
+
+    else:
+        noOfFrags = 0
+        for ch in allFragsDic:
+            noOfFrags += len(allFragsDic[ch])
+
+        for ch in sorted(allFragsDic.keys()):
+            countIntraPairs = 0
+            fragsPerChr = sorted(allFragsDic[ch])
+            templen = len(fragsPerChr)
+            possibleInterAllCount += (noOfFrags-templen)*templen
+            possibleIntraInRangeCountPerChr = 0
+            for x in range(templen):
+                binTracker = 0
+                d = 0
+                for y in range(x+1,templen):
+                    intxnDistance = abs(float(fragsPerChr[x])-float(fragsPerChr[y]))
+                    if myUtils.in_range_check(intxnDistance, distLowThres,distUpThres):
+                        possibleIntraInRangeCountPerChr += 1 
+                    else:
+                        continue
+                    maxPossibleGenomicDist = max(maxPossibleGenomicDist, intxnDistance)
+                    minPossibleGenomicDist = min(minPossibleGenomicDist, intxnDistance)
+                    npairs = templen-d
+                    d+=1
+                    currBin = binStats[binTracker]
+                    minOfBin = currBin[0][0]
+                    maxOfBin = currBin[0][1]
+                    while not (minOfBin<=intxnDistance<=maxOfBin):
+                        binTracker += 1
+                        if binTracker not in binStats:
+                            binTracker-=1
+                            currBin = binStats[binTracker]
+                            minOfBin = currBin[0][0]
+                            maxOfBin = currBin[0][1]
+                            break
+                        else:
+                            currBin = binStats[binTracker]
+                            minOfBin = currBin[0][0]
+                            maxOfBin = currBin[0][1]
+                    currBin[7]+=npairs
+                    currBin[1]+=1
+                    currBin[3]+=float(intxnDistance/distScaling)*npairs
+                    possibleIntraAllCount += 1
+            with open(logfile, 'a') as log:
+                log.write("Chromosome " +repr(ch) +",\t"+str(templen) +" mappable fragments, \t"+str(possibleIntraInRangeCountPerChr)\
+                +" possible intra-chr fragment pairs in range,\t" + str((noOfFrags-templen)*templen) +" possible inter-chr fragment pairs\n")
+            possibleIntraInRangeCount += possibleIntraInRangeCountPerChr
+        possibleInterAllCount/=2
+        try:
+            interChrProb=1.0/possibleInterAllCount
+        except:
+            interChrProb = 0
+        baselineIntraChrProb=1.0/possibleIntraAllCount
+    endT = time.time()
+    print("Fragments file read. Time took %s" % (endT-startT))
+
+    with open(logfile, 'a') as log:
+        log.write("Number of all fragments= %s\n" % (noOfFrags))
+        log.write("Possible, Intra-chr in range: pairs= %s \n" % (possibleIntraInRangeCount))
+        log.write("Possible, Intra-chr all: pairs= %s \n" % (possibleIntraAllCount))
+        log.write("Possible, Inter-chr all: pairs= %s \n" % (possibleInterAllCount))
+        log.write("Desired genomic distance range   [%d %s] \n" % (distLowThres,distUpThres)),
+        log.write("Range of possible genomic distances  [%d  %d] \n" % (minPossibleGenomicDist, maxPossibleGenomicDist)),
+        log.write("Baseline intrachromosomal probability is %s \n" % (baselineIntraChrProb)),
+        log.write("Interchromosomal probability is %s \n" % (interChrProb)),
+
+    return (binStats,noOfFrags, maxPossibleGenomicDist, possibleIntraInRangeCount, possibleInterAllCount, interChrProb, baselineIntraChrProb) # return from generate_FragPairs3
+
+
+def read_biases(infilename):
+    startt = time.time()
+    biasDic={}
+
     rawBiases=[]
-    try:
-        infile =gzip.open(infilename, 'r')
-        infile.readline()
-    except:
-        infile = open(infilename, 'r')
+    infile =gzip.open(infilename, 'rt')
     for line in infile:
         words=line.rstrip().split()
         chr=words[0]; midPoint=int(words[1]); bias=float(words[2])
         if bias!=1.0:
-            rawBiases.append(bias)
+           rawBiases.append(bias)
     infile.close()
-    #sys.stderr.write("\n\nReading ICE biases. \n")
     botQ,med,topQ=mquantiles(rawBiases,prob=[0.05,0.5,0.95])
-    #sys.stderr.write("5th quantile of biases: "+str(botQ)+"\n")
-    #sys.stderr.write("50th quantile of biases: "+str(med)+"\n")
-    #sys.stderr.write("95th quantile of biases: "+str(topQ)+"\n")
-
-    #normFactor=sum(rawBiases)/len(rawBiases)
-    try:
-        infile =gzip.open(infilename, 'r')
-        infile.readline()
-    except:
-        infile = open(infilename, 'r')
+    with open(logfile, 'a') as log:
+        log.write("5th quantile of biases: "+str(botQ)+"\n")
+        log.write("50th quantile of biases: "+str(med)+"\n")
+        log.write("95th quantile of biases: "+str(topQ)+"\n")
+    infile =gzip.open(infilename, 'rt')
     totalC=0
     discardC=0
     for line in infile:
         words=line.rstrip().split()
-        chr=words[0]; midPoint=int(words[1]); bias=float(words[2])
-        # extra conditions
-        #if bias<(botQ/2.0):
+        chr=words[0]; midPoint=int(words[1]); bias=float(words[2]);
         if bias<0.5:
             bias=-1 #botQ
+            #bias=1
             discardC+=1
         elif bias>2:
             bias=-1 #topQ
+            #bias=1
             discardC+=1
-        #
         totalC+=1
         if chr not in biasDic:
             biasDic[chr]={}
         if midPoint not in biasDic[chr]:
             biasDic[chr][midPoint]=bias
     infile.close()
-    sys.stderr.write("Out of " + str(totalC) + " loci " +str(discardC) +" were discarded with biases not in range [0.5 2]\n\n" )
+    with open(logfile, 'a') as log:
+        log.write("Out of " + str(totalC) + " loci " +str(discardC) +" were discarded with biases not in range [0.5 2]\n\n" )
+    endt = time.time()
+    print("Bias file read. Time took %s" % (endt-startt))
+    return biasDic # from read_biases
 
-    return biasDic # from read_ICE_biases
+def calculateProbabilities2(mainDic,binStats,resolution,outfilename,observedIntraInRangeSum):
+    with open(logfile, 'a') as log:
+        log.write("\nCalculating probability means and standard deviations of contact counts\n"),
+        log.write("------------------------------------------------------------------------------------\n"),
 
-def fit_Spline(x,y,yerr,infilename,sortedInteractions,biasDic,figname,passNo):
-    sys.stderr.write("\nFit a univariate spline to the probability means\n")
-    sys.stderr.write("------------------------------------------------------------------------------------\n")
-    sys.stderr.write("baseline intra-chr probability: " + repr(baselineIntraChrProb)+ "\tbaseline inter-chr probability: " + repr(baselineInterChrProb)+"\n")
-    # xi and yi will be used only for visualization purposes
-    # acutal fit and residual is all done on vectors x and y
-    xi = np.linspace(min(x), max(x), overSample*len(x))
+    if resolution:
+        nameoffile = (outfilename+'.res'+str(resolution)+'.txt')
+    else:
+        nameoffile = (outfilename+'.txt')
 
-    # assume residualFactor==-1: 
+    outfile=open(nameoffile, 'w')
+    x = []
+    y = []
+    yerr = []
+    pairCounts=[]
+    interactionTotals=[]
+        ##binStats
+        #0: range of distances in this bin
+        #1: no. of possible pairs w/in this range of distances
+        #2: sumoverallContactCounts
+        #3: Sumoveralldistances in this bin in distScaling vals
+        #4: avg CC
+        #5: avg distance
+        #6: bins
+        #7: no. of possible pairs w/ proper dist
+
+    for i in range(len(binStats)):
+        currBin = binStats[i]
+        sumCC = currBin[2]
+        sumDistB4Scaling = currBin[3]
+        possPairsInRange = currBin[1]
+        avgCC = (1.0*sumCC/possPairsInRange)/observedIntraInRangeSum
+        avgDist = distScaling*(sumDistB4Scaling/currBin[7])
+        currBin[4]=avgCC
+        currBin[5]=avgDist
+        y.append(avgCC)
+        x.append(avgDist)
+        meanCountPerPair = 0
+        M2 = 0
+        for dists in currBin[6]: #by definition not including the nonzero dists in this bin in this calc.
+            delta = mainDic[dists][1]-meanCountPerPair
+            meanCountPerPair += (delta*1.0)/possPairsInRange
+            M2 += delta*(mainDic[dists][1]-meanCountPerPair)
+        var = M2/(possPairsInRange-1)
+        sd = math.sqrt(var)
+        se = sd/math.sqrt(possPairsInRange)
+        se_p = se/observedIntraInRangeSum
+        #yerr.append(se_p)
+        yerr.append(0)
+        pairCounts.append(possPairsInRange)
+        interactionTotals.append(sumCC)
+
+    print("Writing %s" % nameoffile)
+    outfile.write("avgGenomicDist\tcontactProbability\tstandardError\tnoOfLocusPairs\ttotalOfContactCounts\n")
+    for i in range(len(x)):
+        outfile.write("%d" % x[i] + "\t"+"%.2e" % y[i]+ "\t" + "%.2e" % yerr[i] + "\t" +"%d" % pairCounts[i] + "\t" +"%d" % interactionTotals[i]+"\n")
+    outfile.close()
+    with open(logfile, 'a') as log:
+        log.write("Means and error written to %s\n" % (nameoffile)),
+        log.write("\n"),
+    return [x,y,yerr] # from calculateProbabilities2
+
+
+def fit_Spline(mainDic,x,y,yerr,infilename,outfilename,biasDic,outliersline,outliersdist,observedIntraInRangeSum, possibleIntraInRangeCount, possibleInterAllCount, observedIntraAllSum, observedInterAllSum, resolution, passNo):
+    with open(logfile, 'a') as log:
+        log.write("\nFitting a univariate spline to the probability means\n"),
+        log.write("------------------------------------------------------------------------------------\n"),
+    for i in range(1,len(x)):
+        if x[i]<=x[i-1]:
+            print("ERROR in spline fitting. Regenerate dataset ~ erroneous values found.")
+            print(x[i-1])
+            print(x[i])
+            sys.exit(2)
+    
+    # maximum residual allowed for spline is set to min(y)^2
     splineError=min(y)*min(y)
 
     # use fitpack2 method -fit on the real x and y from equal occupancy binning
     ius = UnivariateSpline(x, y, s=splineError)
-    yi = ius(xi)
-
-    #### POST-PROCESS THE SPLINE TO MAKE SURE IT'S NON-INCREASING
-    ### NOW I DO THIS BY CALLING AN R function CALLED MONOREG 
-    ### This does the isotonic regression using option antitonic to make sure 
-    ### I get monotonically decreasing probabilites with increasion genomic distance 
-
     tempMaxX=max(x)
     tempMinX=min(x)
-    tempList=sorted(list(set([int(i[0]) for i in sortedInteractions])))
+    tempList=sorted([dis for dis in mainDic]) #TODO check if this is ok? since previously mainDic had ALL intxn distances (not just nonzero ones)
     splineX=[]
     ### The below for loop will make sure nothing is out of range of [min(x) max(x)]
     ### Therefore everything will be within the range where the spline is defined
     for i in tempList:
-        if tempMinX<=i and i<=tempMaxX:
+        if tempMinX<=i<=tempMaxX:
             splineX.append(i)
-    # END for
-    #print len(splineX)
     splineY=ius(splineX)
+    #print(splineY)
+    #print(yerr)
 
 
-
-    ####ASSUMING R ANTITONIC REGRESSION
     ir = IsotonicRegression(increasing=False)
-    newSplineY = ir.fit_transform(splineX, splineY)
-
+    newSplineY = ir.fit_transform(splineX,splineY)
+    #print(newSplineY)
     residual =sum([i*i for i in (y - ius(x))])
 
     if visual==True:
-        ### Now plot the results
-        sys.stderr.write("Plotting %s" % figname + ".png\n")
+        xi = np.linspace(min(x),max(x),5*len(x))
+        yi = ius(xi)
+
+        print("Plotting %s" % (outfilename + ".png"))
         plt.clf()
         fig = plt.figure()
         ax = fig.add_subplot(2,1,1)
         plt.plot(myUtils.scale_a_list(splineX,toKb), myUtils.scale_a_list(newSplineY,toProb),'g-',label="spline-"+str(passNo),linewidth=2)
         plt.errorbar(myUtils.scale_a_list(x,toKb),myUtils.scale_a_list(y,toProb),myUtils.scale_a_list(yerr,toProb),fmt='r.',label="Mean with std. error",linewidth=2) 
-
-        if allReg: 
-            plt.plot(myUtils.scale_a_list(x,toKb),myUtils.scale_a_list([baselineIntraChrProb for i in x],toProb),'k-',label="Baseline intra-chromosomal")
-            plt.plot(myUtils.scale_a_list(x,toKb),myUtils.scale_a_list([baselineIntraChrProb for i in x],toProb),'b-',label="Baseline inter-chromosomal")
-        elif interOnly:
-            plt.plot(myUtils.scale_a_list(x,toKb),myUtils.scale_a_list([baselineIntraChrProb for i in x],toProb),'b-',label="Baseline inter-chromosomal")
-        else: #this is new, before it plotted all. what's desired behavior?
-            plt.plot(myUtils.scale_a_list(x,toKb),myUtils.scale_a_list([baselineIntraChrProb for i in x],toProb),'k-',label="Baseline intra-chromosomal")
-
+    
         #plt.ylabel('Contact probability (x10$^{-5}$)',fontsize='large')
         #plt.xlabel('Genomic distance (kb)',fontsize='large')
         plt.ylabel('Contact probability (x10$^{-5}$)')
         plt.xlabel('Genomic distance (kb)')
-        if distLowThres>-1 and distUpThres>-1:
+        if distLowThres>0 and distUpThres<float("inf"):
             plt.xlim(myUtils.scale_a_list([distLowThres, distUpThres],toKb))
         plt.gca().yaxis.set_major_locator( MaxNLocator(nbins = 3, prune=None))
         ax.legend(loc="upper right")
@@ -322,516 +789,134 @@ def fit_Spline(x,y,yerr,infilename,sortedInteractions,biasDic,figname,passNo):
 
         plt.loglog(splineX,newSplineY,'g-')
         plt.errorbar(x, y, yerr=yerr, fmt='r.') # Data
-        if allReg: #this is what it was before for useInters. is the intraonly version correct?
-            plt.loglog(x,[baselineIntraChrProb for i in x],'k-')
-            plt.loglog(x,[baselineIntraChrProb for i in x],'b-')
-        elif interOnly:#WHAT?
-            plt.loglog(x,[baselineIntraChrProb for i in x],'b-')
-        else:
-            plt.loglog(x,[baselineIntraChrProb for i in x],'k-')
-            
-
-            
-        if distLowThres>-1 and distUpThres>-1:
+        if distLowThres>0 and distUpThres<float("inf"):
             plt.xlim([distLowThres, distUpThres])
-        #plt.ylabel('Contact probability (log-scale)',fontsize='large')
-        #plt.xlabel('Genomic distance (log-scale)',fontsize='large')
         plt.ylabel('Contact probability (log-scale)')
         plt.xlabel('Genomic distance (log-scale)')
 
-        plt.savefig(outdir+'/'+figname+'.png')
+        plt.savefig(outfilename+'.png')
+            
 
-    # NOW write the calculated pvalues and corrected pvalues in a file 
-    try:
-        infile =gzip.open(infilename, 'r')
-        infile.readline()
-    except:
-        infile = open(infilename, 'r')
+    # NOW write the calculated pvalues and corrected pvalues in a file
+    infile = gzip.open(infilename, 'rt')
     intraInRangeCount=0
     intraOutOfRangeCount=0
     intraVeryProximalCount=0
     interCount=0
-    sys.stderr.write("distLowThres " + repr(distLowThres) + "\tdistUpThres " + repr(distUpThres) +"\n")
+    discardCount=0
     p_vals=[]
     q_vals=[]
+    biasl=[]
+    biasr=[]
     for line in infile:
-        words=line.rstrip().split()
-        interxn=myUtils.Interaction([words[0], int(words[1]), words[2], int(words[3])])
-        interxn.setCount(int(words[4]))
-        chr1=words[0]
-        chr2=words[2]
-        midPoint1=int(words[1])
-        midPoint2=int(words[3])
-
-        bias1=1.0; bias2=1.0;  # assumes there is no bias to begin with 
-        if len(biasDic)>0:
-            if chr1 in biasDic and midPoint1 in biasDic[chr1]:
-                bias1=biasDic[chr1][midPoint1]
-            if chr2 in biasDic and midPoint2 in biasDic[chr2]:
-                bias2=biasDic[chr2][midPoint2]
+        ch1,mid1,ch2,mid2,contactCount=line.rstrip().split()
+        contactCount = float(contactCount)
+        interxn=myUtils.Interaction([ch1, int(mid1), ch2, int(mid2)])
+        interxn.setCount(contactCount)
+        mid1 = int(mid1); mid2 = int(mid2)
+        interactionType = interxn.getType(distLowThres,distUpThres)
+        bias1=1.0; bias2=1.0;  # assumes there is no bias to begin with
         # if the biasDic is not null sets the real bias values
-
-        if (bias1<0 or bias2<0): #CHANGED - regardless of inter or intra
+        if biasDic:
+            if ch1 in biasDic and mid1 in biasDic[ch1]:
+                bias1=biasDic[ch1][mid1]
+            if ch2 in biasDic and mid2 in biasDic[ch2]:
+                bias2=biasDic[ch2][mid2]
+        biasl.append(bias1)
+        biasr.append(bias2)
+        if (bias1<0 or bias2<0) and interactionType !='inter':
             prior_p=1.0
             p_val=1.0
-            p_vals.append(p_val)
-
-        elif interxn.getType(distLowThres,distUpThres)=='intraInRange':
-            intraInRangeCount +=1 
+            discardCount+=1
+        elif interactionType=='intraInRange' and not interOnly:
+            distToLookUp=max(interxn.getDistance(),min(x))
+            distToLookUp=min(distToLookUp,max(x))
+            i=min(bisect.bisect_left(splineX, distToLookUp),len(splineX)-1)
+            prior_p=newSplineY[i]*(bias1*bias2) 
+            p_val=scsp.bdtrc(interxn.getCount()-1,observedIntraInRangeSum,prior_p)
+            intraInRangeCount +=1
+        elif interactionType =='intraShort' and not interOnly:
+            prior_p=1.0
             p_val=1.0
-            if not interOnly:
-                # make sure the interaction distance is covered by the probability bins
-                distToLookUp=max(interxn.distance,min(x))
-                distToLookUp=min(distToLookUp,max(x))
-                i=min(bisect.bisect_left(splineX, distToLookUp),len(splineX)-1)
-                #prior_p=newSplineY[i]
-                prior_p=newSplineY[i]*(bias1*bias2) # biases added in the picture
-                ############# THIS HAS TO BE interactionCount-1 ##################
-                p_val=scsp.bdtrc(interxn.hitCount-1,observedIntraInRangeSum,prior_p)
-            p_vals.append(p_val)
-
-        elif interxn.getType(distLowThres,distUpThres)=='intraShort': # regardless of whether interOnly is true or not 
+            intraVeryProximalCount += 1
+        elif interactionType =='intraLong' and not interOnly:
+            prior_p=1.0
+            #p_val=scsp.bdtrc(interxn.getCount()-1, observedIntraAllSum,prior_p) ##RUNBY
             p_val=1.0
-            intraVeryProximalCount +=1 
-            p_vals.append(p_val)
-
-        elif interxn.getType(distLowThres,distUpThres)=='intraLong': # regardless of whether interOnly is true or not 
-            p_val=1.0
-            intraOutOfRangeCount +=1 
-            p_vals.append(p_val)
-            
-        # what remains for below are pairs with >0 bias values and that are inter           
-        elif interxn.type=='inter' and (allReg or interOnly): #CHANGED 
-            #prior_p=baselineIntraChrProb   
-            prior_p=baselineInterChrProb*(bias1*bias2) # biases added in the picture
-            ############# THIS HAS TO BE interactionCount-1 ##################
-            p_val=scsp.bdtrc(interxn.hitCount-1,observedInterAllSum,prior_p)
-            interCount +=1 
-            p_vals.append(p_val)
-
-        else: #ADDED all of this and below  - when the interxn is inter but only intrachrs wanted (allReg==False and interOnly==False)
-            p_val=1.0
-            interCount +=1 
-            p_vals.append(p_val)
-
-    # END for
+            intraOutOfRangeCount += 1
+        else:
+            if allReg or interOnly:
+                prior_p=interChrProb*(bias1*bias2)
+                p_val=scsp.bdtrc(interxn.getCount()-1,observedInterAllSum,prior_p)
+                interCount += 1
+            else:
+                p_val=1.0
+                #p_vals.append(p_val)
+        p_vals.append(p_val)
     infile.close()
 
-    # Do the BH FDR correction 
+    outlierThres = 0
+    # Do the BH FDR correction
     if allReg:
-        q_vals=myStats.benjamini_hochberg_correction(p_vals, possibleInterAllCount+possibleIntraAllCount)
-        sys.stderr.write("possibleInterAllCount+possibleIntraInRangeCount " + repr(possibleInterAllCount+possibleIntraInRangeCount)+"\n")
-    elif interOnly:
+        outlierThres=1.0/(possibleIntraInRangeCount+possibleInterAllCount)
+        q_vals=myStats.benjamini_hochberg_correction(p_vals, possibleInterAllCount+possibleIntraInRangeCount)
+    elif interOnly and not allReg:
+        outlierThres = 1.0/possibleInterAllCount
         q_vals=myStats.benjamini_hochberg_correction(p_vals, possibleInterAllCount)
-        sys.stderr.write("possibleInterAllCount " + repr(possibleInterAllCount)+"\n")
     else:
+        outlierThres = 1.0/possibleIntraInRangeCount
         q_vals=myStats.benjamini_hochberg_correction(p_vals, possibleIntraInRangeCount)
-        sys.stderr.write("possibleIntraInRangeCount " + repr(possibleIntraInRangeCount)+"\n")
+    print("Outlier threshold is... %s" % (outlierThres))
 
-    try:
-        infile =gzip.open(infilename, 'r')
-        infile.readline()
-    except:
-        infile = open(infilename, 'r')
-    outfile =gzip.open(outdir+'/'+figname+'.significances.txt.gz', 'w')
-    sys.stderr.write("Writing p-values to file %s" % figname + ".significances.txt.gz\n")
+    #now we write the values back to the file
+    infile =gzip.open(infilename, 'rt')
+    if resolution:
+        outfile =gzip.open(outfilename+'.res'+str(resolution)+'.significances.txt.gz', 'wt')
+    else:
+        outfile =gzip.open(outfilename+'.significances.txt.gz', 'wt')
+    print("Writing p-values and q-values to file %s" % (outfilename + ".significances.txt"))
+    outfile.write("chr1\tfragmentMid1\tchr2\tfragmentMid2\tcontactCount\tp-value\tq-value\tbias1\tbias2\n")
     count=0
-    outfile.write("chr1\tfragmentMid1\tchr2\tfragmentMid2\tcontactCount\tp-value\tq-value\n")
-
     for line in infile:
         words=line.rstrip().split()
-        chrNo1=words[0]
+        chr1=words[0]
         midPoint1=int(words[1])
-        chrNo2=words[2]
+        chr2=words[2]
         midPoint2=int(words[3])
         interactionCount=int(words[4])
         p_val=p_vals[count]
         q_val=q_vals[count]
-      
-        #correct?
-        if (allReg or interOnly) and chrNo1!=chrNo2: #interRxns
-            outfile.write("%s\t%d\t%s\t%d\t%d\t%e\t%e\n" % (str(chrNo1),midPoint1,str(chrNo2),midPoint2,interactionCount,p_val,q_val))
-        if (allReg or not interOnly) and chrNo1==chrNo2: #intraRxns
-            interactionDistance=abs(midPoint1-midPoint2)
-            if myUtils.in_range_check(interactionDistance,distLowThres,distUpThres):
-                outfile.write("%s\t%d\t%s\t%d\t%d\t%e\t%e\n" % (str(chrNo1),midPoint1,str(chrNo2),midPoint2,interactionCount,p_val,q_val))
-
+        bias1=biasl[count]
+        bias2=biasr[count]
+        
+        if (allReg or interOnly) and chr1!=chr2:
+            outfile.write("%s\t%d\t%s\t%d\t%d\t%e\t%e\t%e\t%e\n" % (str(chr1), midPoint1, str(chr2), midPoint2, interactionCount, p_val, q_val, bias1, bias2))
+        if (allReg or not interOnly) and chr1==chr2:
+            interactionDistance = abs(midPoint1-midPoint2)
+            if myUtils.in_range_check(interactionDistance,distLowThres, distUpThres):
+                outfile.write("%s\t%d\t%s\t%d\t%d\t%e\t%e\t%e\t%e\n" % (str(chr1), midPoint1, str(chr2), midPoint2, interactionCount, p_val, q_val, bias1, bias2))
+        
+        if p_val<outlierThres:
+            outliersline.add(count)
+            outliersdist.add(abs(midPoint1-midPoint2))
         count+=1
-    # END for - printing pvals and qvals for all the interactions
     outfile.close()
-
-    isOutlier=[]
-    distsBelow=[]
-    distsAbove=[]
-    intcountsBelow=[]
-    intcountsAbove=[]
-    belowThresCount=0
-    aboveThresCount=0
-    outlierThres=1.0/possibleIntraInRangeCount
-    for interactionDistance,interactionCount,bias12 in sortedInteractions:
-        # make sure the interaction distance is covered by the probability bins
-        distToLookUp=max(interactionDistance,min(x))
-        distToLookUp=min(distToLookUp,max(x))
-        i=min(bisect.bisect_left(splineX, distToLookUp),len(splineX)-1) 
-        prior_p=newSplineY[i]*float(bias12) # biases added in the picture
-        ############# THIS HAS TO BE interactionCount-1 ##################
-        p_val=scsp.bdtrc(interactionCount-1,observedIntraInRangeSum,prior_p)
-        if p_val < outlierThres:
-            distsBelow.append(interactionDistance)
-            intcountsBelow.append(interactionCount)
-            isOutlier.append(1)
-            belowThresCount +=1
-        else:
-            distsAbove.append(interactionDistance)
-            intcountsAbove.append(interactionCount)
-            isOutlier.append(0)
-            aboveThresCount +=1
-    # END for - doing the outlier check for all interactions in sortedInteractions
-
-
-    if visual==True:
-        sys.stderr.write("Plotting results of extracting outliers to file %s" % figname + ".extractOutliers.png\n")
-        plt.clf()
-        fig = plt.figure()
-        ax = fig.add_subplot(111)
-        downsample=30 # for the non-outliers
-        randIndcsAbove=sample([i for i in range(len(intcountsAbove))],len(intcountsAbove)/downsample)
-        randIndcsAbove=sorted(randIndcsAbove)
-        downsample=20 # for the outliers
-        randIndcsBelow=sample([i for i in range(len(intcountsBelow))],len(intcountsBelow)/downsample)
-        randIndcsBelow=sorted(randIndcsBelow)
-
-        plt.plot(myUtils.scale_a_list([distsBelow[i] for i in randIndcsBelow],toKb),[intcountsBelow[i] for i in randIndcsBelow], 'r.',label="Outliers (p-value < 1/M)")
-        plt.plot(myUtils.scale_a_list(splineX+[maxObservedGenomicDist],toKb),[newSplineY[i]*observedIntraInRangeSum for i in range(len(newSplineY))]+[newSplineY[-1]*observedIntraInRangeSum], 'g-', label="spline-"+str(passNo)+" (x N)", linewidth=2.5)
-
-        plt.xlabel('Genomic distance (kb)')
-        plt.ylabel('Contact counts')
-        print(repr(len(intcountsBelow))+"\t"),
-        ## this limits y-axis of the hit count plots
-        if len(intcountsBelow)>0:
-            plt.ylim([0,min(max(intcountsBelow),1500)])
-        if distLowThres>-1 and distUpThres>-1:
-            plt.xlim([0, distUpThres*toKb])
-        ax.legend(loc="upper right",fancybox=True)
-        plt.savefig(outdir+'/'+figname+'.extractOutliers.png')
-
-    sys.stderr.write("intraInRangeCount " + repr(intraInRangeCount)+"\tintraOutOfRangeCount " +\
-        repr(intraOutOfRangeCount)+"\tintraVeryProximalCount " + repr(intraVeryProximalCount) +"\tinterCount " + repr(interCount)+"\n")
-
-    if visual==True:
-        sys.stderr.write("Plotting q-values to file %s" % figname + ".qplot.png\n")
+    infile.close()
+    if visual == True:
+        print("Plotting q-values to file %s" % outfilename + ".qplot.png")
     minFDR=0.0
     maxFDR=0.05
     increment=0.001
-    FDRx,FDRy=plot_qvalues(q_vals,minFDR,maxFDR,increment,figname+".qplot")
+    FDRx,FDRy=plot_qvalues(q_vals,minFDR,maxFDR,increment,outfilename+".qplot")
+        
+    with open(logfile, 'a') as log:
+        log.write("Spline successfully fit\n"),
+        log.write("\n"),
+        log.write("\n"),
 
-    infile.close()
+    return [splineX, newSplineY, residual, outliersline, outliersdist, FDRx, FDRy] # from fit_Spline
 
-    return [splineX, newSplineY, residual, isOutlier, FDRx, FDRy] # from fit_Spline
-
-
-def calculate_Probabilities(sortedInteractions,isOutlier,figname):
-
-    sys.stderr.write("\nCalculating probability means and standard deviations by equal occupancy binning of interaction data\n")
-    sys.stderr.write("------------------------------------------------------------------------------------\n")
-    
-    outfile =open(outdir+'/'+figname+'.txt', 'w')
-    
-    # total interaction count to put on top of the plot
-    # this may be different than observedIntraInRangeSum for the second iteration of fit-hic
-    totalInteractionCountForPlot=0
-    lcount=0
-    for eachrow in sortedInteractions:
-        if isOutlier[lcount]==0:
-            totalInteractionCountForPlot += eachrow[1]
-        lcount+=1
-    # END for
-    desiredPerBin=(observedIntraInRangeSum)/noOfBins
-    sys.stderr.write("observedIntraInRangeSum\t"+repr(observedIntraInRangeSum)+ "\tdesiredPerBin\t" +repr(desiredPerBin)+"\tnoOfBins\t"+repr(noOfBins)+"\n")
-
-    # the following five lists will be the print outputs
-    x=[] # avg genomic distances of bins
-    y=[] # avg interaction probabilities of bins
-    yerr=[] # stderrs of bins
-    pairCounts=[] # number of pairs in bins
-    interactionTotals=[] # number of interactions (reads) in bins
-
-    # the following variables will be used to calculate the above five lists
-    noOfPairsForBin=0
-    meanCountPerPair=0
-    M2=0
-    interactionTotalForBin=0
-    interactionTotalForBinTermination=0
-    distanceTotalForBin=0
-    lastDistanceForBin=-1
-    lastInteraction=lcount 
-    lcount=0 # this will increase by eachrow in sortedInteractions
-
-    for eachrow in sortedInteractions:
-        interactionDistance=eachrow[0]
-        interactionCount=eachrow[1]
- 
-        # if one bin is full or it's the last bin
-        if noOfPairsForBin>0 and ((useBinning==False and lastDistanceForBin!=-1 and lastDistanceForBin!=interactionDistance) or\
-            (useBinning==True and lastDistanceForBin!=-1 and interactionTotalForBinTermination >= desiredPerBin and\
-            lastDistanceForBin!=interactionDistance) or lcount==lastInteraction): 
-
-            # calculate the things that need to be calculated
-            avgDistance=(distanceTotalForBin/noOfPairsForBin)*distScaling
-            meanProbabilityObsv=(meanCountPerPair*1.0)/observedIntraInRangeSum
-            se_p=meanProbabilityObsv
-            # update se_p if there are more than 1 pairs in the bin
-            if noOfPairsForBin>1:
-                var=M2/(noOfPairsForBin-1)
-                sd=math.sqrt(var)
-                se=sd/math.sqrt(noOfPairsForBin)
-                se_p=se/observedIntraInRangeSum
-            # END if
-
-            # append the calculated vals to corresponding lists
-            x.append(float(avgDistance))
-            y.append(float(meanProbabilityObsv))
-            yerr.append(float(se_p))
-            pairCounts.append(noOfPairsForBin)
-            interactionTotals.append(interactionTotalForBin)
-    
-            # now that we saved what we need
-            # set the values back to defaults and go on to the next bin
-            noOfPairsForBin=0
-            meanCountPerPair=0
-            M2=0
-            interactionTotalForBin=0
-            interactionTotalForBinTermination=0
-            distanceTotalForBin=0
-            lastDistanceForBin=-1
-        # END if - that checks whether the bin is full etc.
-
-        # Now go back to processing the read values of interactionDistance and interactionCount
-        # this check is necessary for the second pass of fit-hic
-        # we want to only use the non-outlier interactions in our
-        # probability calculation
-        if isOutlier[lcount]==0:
-            distanceTotalForBin +=interactionDistance/distScaling
-            interactionTotalForBin +=interactionCount
-            noOfPairsForBin +=1
-            delta=interactionCount-meanCountPerPair
-            meanCountPerPair += (delta*1.0) / noOfPairsForBin
-            M2 +=delta*(interactionCount-meanCountPerPair)
-        # END if
-        interactionTotalForBinTermination +=interactionCount
-        lcount +=1
-        lastDistanceForBin=interactionDistance
-    # END for over sortedInteractions
-
-    if visual==True:
-        sys.stderr.write("Plotting %s" % figname + ".png\n")
-        plt.clf()
-        fig = plt.figure()
-        ax = fig.add_subplot(111)
-        plt.plot(myUtils.scale_a_list(x,toKb),myUtils.scale_a_list(y,toProb),'ro',label="Mean")
-        plt.errorbar(myUtils.scale_a_list(x,toKb),myUtils.scale_a_list(y,toProb),myUtils.scale_a_list(yerr,toProb),fmt='k.', label="Standard error")
-        #plt.ylabel('Probability (1e-5)')
-        plt.ylabel('Contact probability (x10$^{-5}$)')
-        plt.xlabel('Genomic distance (kb)')
-        titleStr='Binning observed interactions using equal occupancy bins.\n No. of bins: '\
-            +str(noOfBins) +', Library: ' + str(libname)+ ', No. of interactions: ' +str(observedIntraInRangeSum)
-        plt.title(titleStr,size='small')
-        ax.legend(loc="upper right")
-        plt.savefig(outdir+'/'+figname+'.png')
-
-    sys.stderr.write("Writing %s" % figname + ".txt\n")
-    
-    outfile.write("avgGenomicDist\tcontactProbability\tstandardError\tnoOfLocusPairs\ttotalOfContactCounts\n")
-    for i in range(len(x)):
-        outfile.write("%d" % x[i] + "\t"+"%.2e" % y[i]+ "\t" + "%.2e" % yerr[i] + "\t" +"%d" % pairCounts[i] + "\t" +"%d" % interactionTotals[i]+"\n")
-    outfile.close()
-    return [x,y,yerr] # from calculate_Probabilities
-
-def read_All_Interactions(infilename,biasDic):
-    sys.stderr.write("\nReading all the interactions and then sorting the intra chr ones in range according to genomic distance\n")
-    sys.stderr.write("------------------------------------------------------------------------------------\n")
-
-    # global variables initialized by this function
-    global observedIntraAllSum
-    global observedIntraAllCount
-    global observedIntraInRangeSum
-    global observedIntraInRangeCount
-    global observedInterAllSum
-    global observedInterAllCount
-    global minObservedGenomicDist
-    global maxObservedGenomicDist
-
-    #read the interactions file - create a two dimensional numpy array with each row is a [distance,count] pair
-    try:
-        infile =gzip.open(infilename, 'r')
-        infile.readline()
-    except:
-        infile = open(infilename, 'r')
-    for line in infile:
-        words=line.rstrip().split()
-        interxn=myUtils.Interaction([words[0], int(words[1]), words[2], int(words[3])])
-        interxn.setCount(int(words[4]))
-        chrIndex1=chrList.index(interxn.chr1)
-        chrIndex2=chrList.index(interxn.chr2)
-        chr1=words[0]
-        chr2=words[2]
-        midPoint1=int(words[1])
-        midPoint2=int(words[3])
-
-        bias1=1.0; bias2=1.0;  # assumes there is no bias to begin with
-        # if the biasDic is not null sets the real bias values
-        if len(biasDic)>0:
-            if chr1 in biasDic and midPoint1 in biasDic[chr1]:
-                bias1=biasDic[chr1][midPoint1]
-            if chr2 in biasDic and midPoint2 in biasDic[chr2]:
-                bias2=biasDic[chr2][midPoint2]
-
-
-        if interxn.mid1 not in listOfMappableFrags[chrIndex1] or interxn.mid2 not in listOfMappableFrags[chrIndex2]:
-            sys.stderr.write("Not-mappable fragment pair: %s\t" %str(interxn.chr1)+"%d\t" % interxn.mid1+ "%s\t" %str(interxn.chr2) +"%d\n" % interxn.mid2)
-            continue
-
-        if interxn.type=='inter':
-            observedInterAllSum +=interxn.hitCount
-            observedInterAllCount +=1
-        else: # any type of intra
-            observedIntraAllSum +=interxn.hitCount
-            observedIntraAllCount +=1
-            if interxn.getType(distLowThres,distUpThres)=='intraInRange':
-                minObservedGenomicDist=min(minObservedGenomicDist,interxn.distance)
-                maxObservedGenomicDist=max(maxObservedGenomicDist,interxn.distance)
-                # every pair should already be in the dictionary with a zero interaction count
-                dictkey=str(interxn.chr1)+'-'+str(min(interxn.mid1,interxn.mid2))+'-'+str(max(interxn.mid1,interxn.mid2))
-                if not dictkey in possiblePairsPerDistance:
-                    if not (str(interxn.chr1)==str(interxn.chr2) and interxn.mid1==interxn.mid2): 
-                        sys.exit("FitHiC encountered an unexpected fragment pair in the interactionCounts file %s" % dictkey)
-                    continue
-                else:
-                    possiblePairsPerDistance[dictkey]=[interxn.distance,interxn.hitCount,bias1*bias2] #--now with biases
-                observedIntraInRangeSum +=interxn.hitCount
-                observedIntraInRangeCount +=1
-        # END else
-
-    # END for
-    infile.close()
-    sys.stderr.write("Total of \t"+str(observedIntraAllCount) +" observed intra-chr fragment pairs,\t"\
-        +str(observedIntraInRangeCount) +" observed intra-chr fragment pairs in range,\t"\
-        +str(observedInterAllCount) +" observed inter-chr fragment pairs\n" )
-    sys.stderr.write("Total of \t"+str(observedIntraAllSum) +" observed intra-chr read counts,\t"\
-        +str(observedIntraInRangeSum) +" observed intra-chr read counts in range,\t"\
-        +str(observedInterAllSum) +" observed inter-chr read counts\n" )
-    sys.stderr.write("Range of observed genomic distances   [%d %d]" % (minObservedGenomicDist,maxObservedGenomicDist) + "\n")
-
-    # sort the interactions if not already sorted
-    sortedInteractions=[]
-    for i in possiblePairsPerDistance:
-        sortedInteractions.append(possiblePairsPerDistance.get(i))
-    
-    t=time.time()
-    myUtils.sort_by_column(sortedInteractions,0) #in-place sorting according to column index 0 (first column)
-    sys.stderr.write("Total time for sorting interactions according to genomic distance: %.3f\n" % (time.time()-t))
-
-    return sortedInteractions #from read_All_Interactions
-
-def generate_FragPairs(infilename):
-    sys.stderr.write("\nGenerating all possible intra-chromosomal fragment pairs and counting the number of all possible inter-chr fragment pairs\n")
-    sys.stderr.write("------------------------------------------------------------------------------------\n")
-    global listOfMappableFrags # two dimensional list with all mappable fragment midpoints for each chr
-    global chrList # list of all chromosomes (chrno (type=int))
-    global possiblePairsPerDistance # all possible intra-chr fragment pairs
-    global possibleInterAllCount # count of all possible inter-chr fragment pairs
-    global possibleIntraAllCount # count of all possible intra-chr fragment pairs
-    global possibleIntraInRangeCount # count of all possible intra-chr fragment pairs in the range we're interested
-    global baselineInterChrProb # 1 divided by all possible inter-chr fragment pairs 
-    global baselineIntraChrProb #  1 divided by all possible intra-chr fragment pairs
-
-    listOfMappableFrags=[]
-    chrList=[]
-
-    #get the name of the first chr
-    try:
-        infile =gzip.open(infilename, 'r')
-        infile.readline()
-    except:
-        infile = open(infilename, 'r')
-    line=infile.readline()
-    words=line.rstrip().split()
-    currChrNo=words[0] #get the name of first chr
-    infile.close()
-
-    # read the fragments file 
-    fragsPerChr=[] # temporary list that will be added to listOfMappableFrags for each chr
-    totalNoOfFrags=0 # total number of all mappable fragments
-    try:
-        infile =gzip.open(infilename, 'r')
-        infile.readline()
-    except:
-        infile = open(infilename, 'r')
-    for line in infile:
-        words=line.rstrip().split()
-        chrNo=words[0] # can be an integer or a string
-        #words[1] ignored
-        midPoint=int(words[2])
-        hitCount=int(float(words[3]))
-        # whenever the name of the chromosome changes 
-        if currChrNo!=chrNo:
-            listOfMappableFrags.append(fragsPerChr)
-            totalNoOfFrags += len(fragsPerChr)
-            chrList.append(currChrNo)
-            currChrNo = chrNo
-            fragsPerChr=[]
-        # add the mappable midPoints to the temp fragsPerChr
-        if hitCount >= mappabilityThreshold:
-            fragsPerChr.append(midPoint)
-    #END for
-
-    # handle the last chromosome
-    listOfMappableFrags.append(fragsPerChr)
-    totalNoOfFrags += len(fragsPerChr)
-    chrList.append(currChrNo)
-    infile.close()
-    
-    # create all possible frag pairs 
-    possibleInterAllCount=0
-    possibleIntraInRangeCount=0
-    possibleIntraAllCount=0
-    for i in chrList:
-        countIntraPairs=0
-        chrIndex=chrList.index(i) # get the index of chromosome from the chrList 
-        fragsPerChr=(listOfMappableFrags[chrIndex])[:] # get the mappable midpoints for that chr
-        tempLen=len(fragsPerChr)
-        possibleInterAllCount+= (totalNoOfFrags-tempLen)*tempLen
-        # iterate over all possible intra-chr pairs to see which ones qualify as a 'possible' pair
-        for x in range(tempLen):
-            for y in range(x+1,tempLen):
-                interactionDistance=abs(fragsPerChr[x]-fragsPerChr[y])
-                if myUtils.in_range_check(interactionDistance,distLowThres,distUpThres):
-                    countIntraPairs +=1
-                    dictkey=str(i)+'-'+str(min(fragsPerChr[x],fragsPerChr[y]))+'-'+str(max(fragsPerChr[x],fragsPerChr[y]))
-                    possiblePairsPerDistance[dictkey]=[interactionDistance,0,1.0] # set count to zero for now and bias to 1.0
-                possibleIntraAllCount+=1
-            #END for
-        #END for
-        possibleIntraInRangeCount+=countIntraPairs
-        sys.stderr.write("Chromosome " +repr(i) +",\t"+str(tempLen) +" mappable fragments, \t"+str(countIntraPairs)\
-        +" possible intra-chr fragment pairs in range,\t" + str((totalNoOfFrags-tempLen)*tempLen) +" possible inter-chr fragment pairs\n")
-    #END for
-
-    # divide the possibleInterAllCount by 2 so that every inter-chr interaction is counted only once
-    possibleInterAllCount=possibleInterAllCount/2
-    sys.stderr.write("Total of \t"+str(possibleIntraInRangeCount) +" possible intra-chr fragment pairs in range,\t"\
-    +str(possibleIntraAllCount) +" possible intra-chr fragment pairs,\t"\
-    +str(possibleInterAllCount) +" possible inter-chr fragment pairs\n")
-    # calculate inter-chr probabilities
-    if possibleInterAllCount >0:
-        baselineInterChrProb=1.0/possibleInterAllCount
-    baselineIntraChrProb=1.0/possibleIntraAllCount
-
-    return # from generate_FragPairs
-
-
-
-def plot_qvalues(q_values,minFDR,maxFDR,increment,figname):
+def plot_qvalues(q_values,minFDR,maxFDR,increment,outfilename):
     qvalTicks=np.arange(minFDR,maxFDR+increment,increment)
     significantTicks=[0 for i in range(len(qvalTicks))]
     qvalBins=[-1 for i in range(len(q_values))]
@@ -858,12 +943,66 @@ def plot_qvalues(q_values,minFDR,maxFDR,increment,figname):
         ax = fig.add_subplot(1,1,1)
         plt.plot(qvalTicks,significantTicks, 'b*-')
         plt.xlabel('FDR threshold')
-        plt.ylabel('Significant contacts')
-        plt.savefig(outdir+'/'+figname+'.png')
+        plt.ylabel('Number of significant contacts')
+        plt.savefig(outfilename+'.png')
 
     return [qvalTicks,significantTicks]
 
+def compare_Spline_FDR(splineFDRxinit,splineFDRyinit,splineFDRx,splineFDRy,figname,i):
+    newlab = 'spline-' + str(i)
+    plt.clf()
+    fig = plt.figure()
+    ax = fig.add_subplot(1,1,1)
 
-#if __name__ == "__main__":
-#    main()
+    plt.plot(splineFDRx[1:],myUtils.scale_a_list(splineFDRy[1:],toKb), 'r+-',label=newlab)
+    plt.plot(splineFDRxinit[1:],myUtils.scale_a_list(splineFDRyinit[1:],toKb), 'g.-',label='spline-1')
+    plt.xlabel('FDR threshold')
+    plt.ylabel('Significant contacts (x10$^{3}$)')
+    plt.gca().yaxis.set_major_locator( MaxNLocator(prune='lower'))
+    lg=ax.legend(loc="lower right")
+    lg.draw_frame(False)
+    plt.savefig(figname+'.png')
 
+def compareFits_Spline(splineXinit,splineYinit,splineX,splineY,figname,X):
+    downsample=min(5000,len(splineXinit))
+    plt.clf()
+    fig = plt.figure()
+    ax = fig.add_subplot(1,1,1)
+    x=splineXinit
+    y=splineYinit
+    col='g.-'
+    lab='spline-1'
+    randIndcs=[i for i in range(len(x))]
+    randIndcs=np.random.choice(randIndcs,downsample)
+    randIndcs=sorted(randIndcs)
+    x=myUtils.scale_a_list([x[i] for i in randIndcs],toKb)
+    y=myUtils.scale_a_list([y[i] for i in randIndcs],toProb)
+    plt.plot(x,y,col,label=lab)
+
+    if figname[-1]!='1': # meaning this is not the very first step
+        x=splineX
+        y=splineY
+        col='r.-'
+        lab='spline-'+X
+        randIndcs=[i for i in range(len(x))]
+        randIndcs=np.random.choice(randIndcs,downsample)
+        randIndcs=sorted(randIndcs)
+        x=myUtils.scale_a_list([x[i] for i in randIndcs],toKb)
+        y=myUtils.scale_a_list([y[i] for i in randIndcs],toProb)
+        plt.plot(x,y,col,label=lab)
+    else: # plot only at a limited range and plot discrete binning
+        if max(x)>1000: # if it's a big genome
+            plt.xlim([500,1000])
+            plt.ylim([0,1.0])
+        else: # small genome
+            plt.xlim([50,100])
+            plt.ylim([0,0.5])
+
+    ax.legend(loc="upper right")
+    plt.xlabel('Genomic distance (kb)')
+    plt.ylabel('Contact probability (x10$^{-5}$)')
+    plt.gca().yaxis.set_major_locator( MaxNLocator(prune='lower'))
+    plt.savefig(figname+'.png')
+
+if __name__ == "__main__":
+    main()

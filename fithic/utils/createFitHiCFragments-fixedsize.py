@@ -8,51 +8,49 @@ Code for creating fragments to be used in FitHiC
 Author: Sourya Bhattacharyya
 Vijay-Ay lab, LJI
 """
+## Modified by Arya Kaul 2018-05-30 to use gzip, python3, and argparse
+## Modified by Arya Kaul 2018-05-31 to fix last bin bug 
+
 
 import sys
 import os
-from optparse import OptionParser
-
+import argparse 
+import gzip
 #===============================================
+def parseargs(arguments):
+    parser = argparse.ArgumentParser(description="Check help flag")
+    parser.add_argument("--chrLens", help="Chromosome lengths file. In format, 'chrNUM\tlength'", required=True)
+    parser.add_argument("--outFile", help="Output file for storing fragment file", required=True)
+    parser.add_argument("--resolution", help="Resolution of dataset being analyzed", type=int, required=True)
+    return parser.parse_args()
+
+
 def main():
-    parser = OptionParser()
-
-    # the first option parses input chromosome size file
-    parser.add_option("--ChrSizeFile", dest="ChrSizeFile", help="Input file containing size of the reference chromosome.")
-
-    # second option takes the output file storing fragment information
-    parser.add_option("--OutFile", dest="OutFile", help="Output file for storing the fragments.")
-
-    # third option is the bin size 
-    parser.add_option("--binsize", dest="binsize", type="int", help="Bin size employed for fragment file. DEFAULT 10000 (10 Kb resolution).")
-
-    parser.set_defaults(ChrSizeFile=None, OutFile=None, binsize=10000)
-    (options, args) = parser.parse_args()
-
+    args = parseargs(sys.argv[1:])
     global ChrSizeFile
     global OutFile
     global BinSize
+    ChrSizeFile = args.chrLens
+    OutFile = args.outFile
+    BinSize = args.resolution
 
-    if options.ChrSizeFile is not None:
-        ChrSizeFile = os.path.realpath(options.ChrSizeFile)
+    if ChrSizeFile is not None:
+        ChrSizeFile = os.path.realpath(ChrSizeFile)
     else:
         sys.exit("Input reference chromosome size file is not specified - quit !!")
 
-    print 'ChrSizeFile: ', ChrSizeFile
+    print ('ChrSizeFile: %s' % ChrSizeFile)
 
-    if options.OutFile is not None:
-        OutFile = os.path.realpath(options.OutFile)
+    if OutFile is not None:
+        OutFile = os.path.realpath(OutFile)
     else:
         sys.exit("Output file for storing the fragments is not specified - quit !!") 
 
-    print 'OutFile: ', OutFile
-
-    BinSize = int(options.binsize)
-
-    print 'BinSize: ', BinSize
+    print('OutFile: %s'% OutFile)
+    print('BinSize: %s' % BinSize)
 
     # open the output fragment file
-    fp_out = open(OutFile, 'w')
+    fp_out = gzip.open(OutFile, 'wt')
 
     # read the file containing chromosome size
     chr_count = 0
@@ -68,13 +66,14 @@ def main():
             if ((curr_chr_size % BinSize) == 0):
                 interval_end = curr_chr_size
             else:
-                interval_end = (int(curr_chr_size / BinSize)) * BinSize
+                #interval_end = (int(curr_chr_size / BinSize)) * BinSize
+                interval_end = (int((curr_chr_size+BinSize) / BinSize)) * BinSize
             for val in range(0, interval_end, BinSize):
                 curr_start = val
                 curr_mid = val + BinSize / 2
                 if (chr_count > 1) or (val > 0):
                     fp_out.write('\n')
-                fp_out.write(str(curr_chr) + '\t' + str(curr_start) + '\t' + str(curr_mid) + '\t' + str(1) + '\t' + str(1))    
+                fp_out.write(str(curr_chr) + '\t' + str(curr_start) + '\t' + str(int(curr_mid)) + '\t' + str(1) + '\t' + str(1))    
 
     # close the output fragment file
     fp_out.close()

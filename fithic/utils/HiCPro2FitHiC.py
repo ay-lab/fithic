@@ -11,10 +11,11 @@ import gzip
 # Modified by Ferhat Ay - 6/5/2017 - added resolution (-r <res>) argument to avoid some problems with inferring it from the first entry of bedFile
 # Modified by Ferhat Ay - 6/7/2017 - hitCount to ints, and gzip output 
 # Modified by Arya Kaul - 12/21/2017 - bug fix when no -o option specified 
+# Modified by Arya Kaul - 05/21/2018 - modified for python3
 
 
 def outputfithicform(bedPath, matrixPath, intCPath, fragMapPath, biasVectorPath=None, biasVectorOutput=None,res=0):
-	print "Loading matrix file..."
+	print("Loading matrix file...")
 	fragDic = {}
 	# resolution of data to be determined if res=0 at this point
 	with open(bedPath, 'r') as bedFile:
@@ -30,7 +31,7 @@ def outputfithicform(bedPath, matrixPath, intCPath, fragMapPath, biasVectorPath=
 
 	lineCount=0
 	with open(matrixPath, 'r') as matrixFile:
-		with gzip.open(intCPath, 'w') as interactionCountsFile:
+		with gzip.open(intCPath, 'wt') as interactionCountsFile:
 			for lines in matrixFile:
 				line = lines.rstrip().split()
 				i = int(line[0])
@@ -42,9 +43,9 @@ def outputfithicform(bedPath, matrixPath, intCPath, fragMapPath, biasVectorPath=
 				interactionCountsFile.write(str(fragDic[i][0])+'\t'+str(fragDic[i][2])+'\t'+\
 					str(fragDic[j][0])+'\t'+str(fragDic[j][2])+'\t'+str(cc)+"\n")
 				lineCount+=1
-				if lineCount%1000000==0: print "%d million lines read" % int(lineCount/1000000)
+				if lineCount%1000000==0: print ("%d million lines read" % int(lineCount/1000000))
 
-	with gzip.open(fragMapPath, 'w') as fragmentMappabilityFile:
+	with gzip.open(fragMapPath, 'wt') as fragmentMappabilityFile:
 		for indices in sorted(fragDic): # sorted so that we start with the smallest index
 			toWrite = 0
 			if fragDic[indices][3]> 0: toWrite=1 
@@ -52,7 +53,7 @@ def outputfithicform(bedPath, matrixPath, intCPath, fragMapPath, biasVectorPath=
 				str(fragDic[indices][2])+'\t'+str(int(fragDic[indices][3]))+'\t'+str(toWrite)+'\n')
 
 	if biasVectorPath is not None and biasVectorOutput is not None:
-		print "Converting bias file..."
+		print ("Converting bias file...")
 
 		biasVec=[0,0] # bias sum and biasCount
 		biasDic={} # bias for each index
@@ -71,7 +72,7 @@ def outputfithicform(bedPath, matrixPath, intCPath, fragMapPath, biasVectorPath=
 		# Centering the bias values on 1.
 		biasAvg=biasVec[0]/biasVec[1]
 
-		with gzip.open(biasVectorOutput, 'w') as biasVectorOutputFile:
+		with gzip.open(biasVectorOutput, 'wt') as biasVectorOutputFile:
 			for index in sorted(biasDic):
 				value=biasDic[index]
 				if not math.isnan(value):
@@ -79,7 +80,7 @@ def outputfithicform(bedPath, matrixPath, intCPath, fragMapPath, biasVectorPath=
 				else: 
 					value=-1
 				biasVectorOutputFile.write(str(fragDic[index][0])+'\t'+str(fragDic[index][2])+'\t'+str(value)+'\n')
-	print "Conversion from HiC-Pro to Fit-Hi-C format completed"
+	print("Conversion from HiC-Pro to Fit-Hi-C format completed")
 
 #outputfithicform(args.bedPath, args.matrixPath, args.intCPath, args.fragMapPath, args.biasVectorPathandOutput[0], args.biasVectorPathandOutput[1])
 
