@@ -71,23 +71,28 @@ def returnBias(rawMatrix, perc=0.05):
     return biasWZeros
 
 def removeZeroDiagonalCSR(mtx, i):
+    print("Remove zero")
     iteration = 0
     toRemove = []
     ctr = 0
     rowSums = mtx.sum(axis=0)
     rowSums = list(np.array(rowSums).reshape(-1,)) 
     rowSums = list(enumerate(rowSums))
-    for value in rowSums:
-        if int(value[1]) == 0:
-            toRemove.append(value[0])
-            rowSums.remove(value) 
+    #for value in rowSums:
+    #    if int(value[1]) == 0:
+    #        toRemove.append(value[0])
+    #        rowSums.remove(value) 
     rowSums.sort(key=lambda tup: tup[1])
     size = len(rowSums)
     perc = i
     rem = int(perc * size)
-    while ctr < rem:
-        toRemove.append(rowSums[ctr][0])
-        ctr += 1
+    print(rem)
+    valToRemove = rowSums[rem][1]
+    print(valToRemove)
+    for value in rowSums:
+        if value[1] <= valToRemove:
+            #print(value[1])
+            toRemove.append(value[0])
     list(set(toRemove))
     toRemove.sort()
     mtx = dropcols_coo(mtx, toRemove)
