@@ -8,22 +8,7 @@ Please use the [Google Group](https://groups.google.com/forum/#!forum/fithic) fo
 ## How-to Install
 Fit-Hi-C may be installed through one of two ways. **NOTE** - pip release of Fit-Hi-C v.2.0.0 still underway. Please follow Github Installation protocol
 
- - PyPi
  - Github
-
-### PyPi Installation 
-Arguably the easiest method. The only command you need to run is:
-
-    pip install fithic
-This should handle all dependencies needed. If you encounter an error with the installation process. Ensure that pip is installed correctly (step by step instructions found [here](https://pip.pypa.io/en/stable/installing/)). If problems persist, try to attempt:
-
-    sudo -H pip install fithic
-
-Please note that Fit-Hi-C is currently **only** supported in *Python 2.7*.
-
-Should everything work correctly you will be able to run fithic as a command line argument i.e.
-
-    fithic --ARGUMENTS
 
 ### Github Installation
 Run:
