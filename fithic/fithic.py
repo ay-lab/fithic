@@ -98,6 +98,16 @@ def parse_args(args):
                       help="OPTIONAL: use this flag to determine which chromosomal \
                       regions to study (intraOnly, interOnly, All) \
                       DEFAULT is intraOnly", required=False)
+    
+    parser.add_argument("-tL", "--biasLowerBound", dest="biasLowerBound",\
+                      help="OPTIONAL: this flag is used to determine the lower bound\
+                      of bias values to discard. DEFAULT is 0.5"\
+                      , required=False)
+    
+    parser.add_argument("-tU", "--biasUpperBound", dest="biasUpperBound",\
+                      help="OPTIONAL: this flag is used to determine the upper bound\
+                      of bias values to discard. DEFAULT is 2"\
+                      , required=False)
 
     parser.add_argument("-V", "--version", action="version",version=versionStr)
 
@@ -227,6 +237,20 @@ def main():
         print("Invalid Option. Only options are 'All', 'interOnly', or 'intraOnly'")
         sys.exit(2)
 
+    global biasLowerBound
+    global biasUpperBound
+    biasLowerBound = 0.5
+    biasUpperBound = 2
+    if args.biasLowerBound:
+        biasLowerBound = args.biasLowerBound
+    if args.biasUpperBound:
+        biasUpperBound = args.biasUpperBound
+    if biasLowerBound > biasUpperBound:
+        print("Invalid Option. Bias lower bound is greater than bias upper bound. Please fix.")
+        sys.exit(2)
+    print("Lower bound of bias values is %s" % biasLowerBound)
+    print("Upper bound of bias values is %s" % biasUpperBound)
+
     print("All arguments processed. Running FitHiC now...")
     print("=========================")
     print("\n")
@@ -276,7 +300,7 @@ def main():
     binStats = makeBinsFromInteractions(mainDic, noOfBins, observedIntraInRangeSum)
 
     #Enumerate (fast version) or generate (otherwise) all possible pairs of fragments within the range of interest.
-    (binStats,noOfFrags, maxPossibleGenomicDist, possibleIntraInRangeCount, possibleInterAllCount, interChrProb, baselineIntraChrProb)= generate_FragPairs3(binStats, fragsFile, resolution)
+    (binStats,noOfFrags, maxPossibleGenomicDist, possibleIntraInRangeCount, possibleInterAllCount, interChrProb, baselineIntraChrProb)= generate_FragPairs(binStats, fragsFile, resolution)
 
     #read and parse bias values for each locus from ICE or KR normalization output
     if biasFile:
@@ -285,7 +309,7 @@ def main():
         biasDic = 0
 
     #bin the data in desired number of bins, and for each bin, calculate the average genomic distance and average contact probability
-    (x,y,yerr)= calculateProbabilities2(mainDic, binStats,resolution,os.path.join(outputPath,libName+".fithic_pass1"), observedIntraInRangeSum)
+    (x,y,yerr)= calculateProbabilities(mainDic, binStats,resolution,os.path.join(outputPath,libName+".fithic_pass1"), observedIntraInRangeSum)
 
     splinefit1st=time.time()
     print("Spline fit Pass 1 starting...")
@@ -303,8 +327,8 @@ def main():
         print("\n")
         (mainDic,observedInterAllSum,observedIntraAllSum,observedIntraInRangeSum) = read_Interactions(contactCountsFile, biasFile, outliersline)
         binStats = makeBinsFromInteractions(mainDic, noOfBins, observedIntraInRangeSum, outliersdist)
-        (binStats,noOfFrags, maxPossibleGenomicDist, possibleIntraInRangeCount,possibleInterAllCount, interChrProb, baselineIntraChrProb)= generate_FragPairs3(binStats, fragsFile, resolution)
-        (x,y,yerr)= calculateProbabilities2(mainDic, binStats,resolution,os.path.join(outputPath,libName+".fithic_pass"+str(i)), observedIntraInRangeSum)
+        (binStats,noOfFrags, maxPossibleGenomicDist, possibleIntraInRangeCount,possibleInterAllCount, interChrProb, baselineIntraChrProb)= generate_FragPairs(binStats, fragsFile, resolution)
+        (x,y,yerr)= calculateProbabilities(mainDic, binStats,resolution,os.path.join(outputPath,libName+".fithic_pass"+str(i)), observedIntraInRangeSum)
         splinefitst=time.time()
         print("Spline fit Pass %s starting..." % i)
         splineX,splineY,residual,outliersline, outliersdist, FDRX, FDRY= fit_Spline(mainDic,x,y,yerr,contactCountsFile,os.path.join(outputPath,libName+".spline_pass"+str(i)),biasDic, outliersline, outliersdist, observedIntraInRangeSum, possibleIntraInRangeCount, possibleInterAllCount, observedIntraAllSum, observedInterAllSum, resolution, i)
@@ -469,7 +493,7 @@ def makeBinsFromInteractions(mainDic,noOfBins, observedIntraInRangeSum, outliers
         log.write("\n")
     return binStats
 
-def generate_FragPairs3(binStats, fragsfile, resolution): 
+def generate_FragPairs(binStats, fragsfile, resolution): 
     if resolution:
         with open(logfile, 'a') as log:
             log.write("Looping through all possible fragment pairs in-range\n")
@@ -621,7 +645,7 @@ def generate_FragPairs3(binStats, fragsfile, resolution):
         log.write("Baseline intrachromosomal probability is %s \n" % (baselineIntraChrProb)),
         log.write("Interchromosomal probability is %s \n" % (interChrProb)),
 
-    return (binStats,noOfFrags, maxPossibleGenomicDist, possibleIntraInRangeCount, possibleInterAllCount, interChrProb, baselineIntraChrProb) # return from generate_FragPairs3
+    return (binStats,noOfFrags, maxPossibleGenomicDist, possibleIntraInRangeCount, possibleInterAllCount, interChrProb, baselineIntraChrProb) # return from generate_FragPairs
 
 
 def read_biases(infilename):
@@ -647,11 +671,10 @@ def read_biases(infilename):
     for line in infile:
         words=line.rstrip().split()
         chr=words[0]; midPoint=int(words[1]); bias=float(words[2]);
-        if bias<0.5:
+        if bias<biasLowerBound:
             bias=-1 #botQ
-            #bias=1
             discardC+=1
-        elif bias>2:
+        elif bias>biasUpperBound:
             bias=-1 #topQ
             #bias=1
             discardC+=1
@@ -667,7 +690,7 @@ def read_biases(infilename):
     print("Bias file read. Time took %s" % (endt-startt))
     return biasDic # from read_biases
 
-def calculateProbabilities2(mainDic,binStats,resolution,outfilename,observedIntraInRangeSum):
+def calculateProbabilities(mainDic,binStats,resolution,outfilename,observedIntraInRangeSum):
     with open(logfile, 'a') as log:
         log.write("\nCalculating probability means and standard deviations of contact counts\n"),
         log.write("------------------------------------------------------------------------------------\n"),
@@ -727,7 +750,7 @@ def calculateProbabilities2(mainDic,binStats,resolution,outfilename,observedIntr
     with open(logfile, 'a') as log:
         log.write("Means and error written to %s\n" % (nameoffile)),
         log.write("\n"),
-    return [x,y,yerr] # from calculateProbabilities2
+    return [x,y,yerr] # from calculateProbabilities
 
 
 def fit_Spline(mainDic,x,y,yerr,infilename,outfilename,biasDic,outliersline,outliersdist,observedIntraInRangeSum, possibleIntraInRangeCount, possibleInterAllCount, observedIntraAllSum, observedInterAllSum, resolution, passNo):
@@ -748,7 +771,7 @@ def fit_Spline(mainDic,x,y,yerr,infilename,outfilename,biasDic,outliersline,outl
     ius = UnivariateSpline(x, y, s=splineError)
     tempMaxX=max(x)
     tempMinX=min(x)
-    tempList=sorted([dis for dis in mainDic]) #TODO check if this is ok? since previously mainDic had ALL intxn distances (not just nonzero ones)
+    tempList=sorted([dis for dis in mainDic])
     splineX=[]
     ### The below for loop will make sure nothing is out of range of [min(x) max(x)]
     ### Therefore everything will be within the range where the spline is defined
