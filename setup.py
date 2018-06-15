@@ -1,8 +1,9 @@
 from setuptools import setup
+from setuptools import find_packages
 
 setup(
     name = "fithic",
-    version = '2.0.0',
+    version = '2.0.3',
     description = 'Hi-C Analysis software created and maintained by the Ay Lab',
     url = 'http://github.com/ay-lab/fithic/tree/development',
     entry_points = {

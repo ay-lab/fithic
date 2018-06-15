@@ -17,8 +17,8 @@ import bisect
 import gzip
 from scipy.stats.mstats import mquantiles
 from scipy import stats
-import myStats
-import myUtils
+from . import myStats
+from . import myUtils
 from sklearn.isotonic import IsotonicRegression
 from sortedcontainers import SortedList
 import os
@@ -29,7 +29,7 @@ import matplotlib.pyplot as plt
 from matplotlib.ticker import ScalarFormatter, FormatStrFormatter, MaxNLocator
 from pylab import *
 
-versionStr = "You are using fithic version 2.0.0"
+versionStr = "You are using fithic version 2.0.3"
 
 def parse_args(args):
     parser = argparse.ArgumentParser(description="Check the help flag")
