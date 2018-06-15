@@ -2,13 +2,13 @@ from setuptools import setup
 
 setup(
     name = "fithic",
-    version = '1.1.3',
+    version = '2.0.0',
     description = 'Hi-C Analysis software created and maintained by the Ay Lab',
-    url = 'http://github.com/ay-lab/fithic',
+    url = 'http://github.com/ay-lab/fithic/tree/development',
     entry_points = {
         "console_scripts": ['fithic = fithic.fithic:main']
         },
-    python_requires = '~=2.7',
+    python_requires = '~=3.6',
     author = 'Ferhat Ay',
     author_email = 'ferhatay@lji.org',
     license = 'MIT',
@@ -18,6 +18,7 @@ setup(
         'matplotlib',
         'scipy',
         'scikit-learn',
+        'sortedcontainers',
     ],
     zip_safe = False,
   )
