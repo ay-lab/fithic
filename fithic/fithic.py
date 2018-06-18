@@ -17,8 +17,12 @@ import bisect
 import gzip
 from scipy.stats.mstats import mquantiles
 from scipy import stats
-from . import myStats
-from . import myUtils
+try:
+    from . import myStats
+    from . import myUtils
+except:
+    import myStats
+    import myUtils
 from sklearn.isotonic import IsotonicRegression
 from sortedcontainers import SortedList
 import os
@@ -727,6 +731,7 @@ def calculateProbabilities(mainDic,binStats,resolution,outfilename,observedIntra
         currBin[5]=avgDist
         y.append(avgCC)
         x.append(avgDist)
+        """
         meanCountPerPair = 0
         M2 = 0
         for dists in currBin[6]: #by definition not including the nonzero dists in this bin in this calc.
@@ -738,6 +743,7 @@ def calculateProbabilities(mainDic,binStats,resolution,outfilename,observedIntra
         se = sd/math.sqrt(possPairsInRange)
         se_p = se/observedIntraInRangeSum
         #yerr.append(se_p)
+        """
         yerr.append(0)
         pairCounts.append(possPairsInRange)
         interactionTotals.append(sumCC)

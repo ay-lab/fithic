@@ -29,7 +29,7 @@ echo "The lower distance threshold is $lowDistThres"
     #compress
 ################################
 
-zless $validPairsFile | 
+zcat -f $validPairsFile | 
 awk '{if(length($2)<=5 && length($5)<=5) {print $0}}' | grep -v chrM | 
 awk -v t=$lowDistThres '{if($2!=$5||($2==$5 && (sqrt(($3-$6)^2>t)))) {print $0}}' | 
 awk -v r=$w '{print $2, int($3/r)*r, $5, int($6/r)*r}' | 
