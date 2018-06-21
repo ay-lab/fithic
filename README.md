@@ -6,7 +6,7 @@ Fit-Hi-C was initially developed by Ferhat Ay, Timothy Bailey, and William Noble
 Please use the [Google Group](https://groups.google.com/forum/#!forum/fithic) for discussions/bug reports/analysis questions. Sending an email to fithic@googlegroups<span></span>&#46;com will also post directly to the Group.
 
 ## How-to Install
-Fit-Hi-C may be installed through one of two ways. **NOTE** - pip release of Fit-Hi-C v.2.0.0 still underway. Please follow Github Installation protocol
+Fit-Hi-C may be installed through one of two ways. 
 
  - Github
 
@@ -16,17 +16,36 @@ Run:
     git clone https://github.com/ay-lab/fithic.git
 You will need the following dependencies installed to run Fit-Hi-C:
 
- - Python 3
- - Numpy
- - Scipy
- - Sklearn
- - SortedContainers
- - Matplotlib
+ - Python 3.+
+ - Numpy 1.14.+
+ - Scipy 1.1.+
+ - Scikit-learn 0.19.+ 
+ - SortedContainers 2.0.+
+ - Matplotlib 2.2.+
 
-This will create a direct clone of Fit-Hi-C in your working directory with the name fithic. You may now run Fit-Hi-C by directly running the fithic-runner&#46;py file in this directory:
+This will create a direct clone of Fit-Hi-C in your working directory with the name fithic. You may now run Fit-Hi-Cv.2 by running `git checkout development` and then calling the `fithic.py` file in this directory:
 
-    python fithic-runner.py --ARGUMENTS
+```
+python3 fithic.py --ARGUMENTS
+```
+
 Cloning into the repository **does not** automatically install the command line version of Fit-Hi-C, and if you desire that functionality follow the PyPi installation instructions. 
+
+### PyPi Installation
+Ensure that you have `Python3` successfully installed on your computer.
+Then run:
+```
+pip3 fithic
+```
+After this is done, run `fithic --help` to ensure all necessary dependencies have been installed. While it should have happened automatically, if it has not installed properly merely run:
+
+```
+pip3 DEPENDENCY
+```
+For each of the dependencies listed above.
+
+### Timing
+Installation should take no longer than 3 minutes.
 
 ## Testing Fit-Hi-C Installation
 A good part of any software installation is being able to run tests on the correct installation of it. 
