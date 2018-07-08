@@ -3,7 +3,7 @@ from setuptools import find_packages
 
 setup(
     name = "fithic",
-    version = '2.0.3',
+    version = '2.0.4',
     description = 'Hi-C Analysis software created and maintained by the Ay Lab',
     url = 'http://github.com/ay-lab/fithic/tree/development',
     entry_points = {
