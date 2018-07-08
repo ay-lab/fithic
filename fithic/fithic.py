@@ -324,9 +324,12 @@ def main():
     print("Number of outliers is... %s" % len(outliersline))
     splinefit1en = time.time()
     print("Spline fit Pass 1 completed. Time took %s" % (splinefit1en-splinefit1st))
-    
+
     ### DO THE NEXT PASSES IF REQUESTED ###
     for i in range(2,1+noOfPasses):
+        if interOnly:
+            print("Extra spline fits will not help with interOnly spline fit... Bypassing option")
+            break
         print("\n")
         print("\n")
         (mainDic,observedInterAllSum,observedIntraAllSum,observedIntraInRangeSum) = read_Interactions(contactCountsFile, biasFile, outliersline)
@@ -657,19 +660,20 @@ def read_biases(infilename):
     biasDic={}
 
     rawBiases=[]
-    infile =gzip.open(infilename, 'rt')
+    try:
+        infile =gzip.open(infilename, 'rt')
+    except:
+        infile = open(infilename, 'r')
     for line in infile:
         words=line.rstrip().split()
         chr=words[0]; midPoint=int(words[1]); bias=float(words[2])
         if bias!=1.0:
            rawBiases.append(bias)
-    infile.close()
     botQ,med,topQ=mquantiles(rawBiases,prob=[0.05,0.5,0.95])
     with open(logfile, 'a') as log:
         log.write("5th quantile of biases: "+str(botQ)+"\n")
         log.write("50th quantile of biases: "+str(med)+"\n")
         log.write("95th quantile of biases: "+str(topQ)+"\n")
-    infile =gzip.open(infilename, 'rt')
     totalC=0
     discardC=0
     for line in infile:
@@ -725,8 +729,16 @@ def calculateProbabilities(mainDic,binStats,resolution,outfilename,observedIntra
         sumCC = currBin[2]
         sumDistB4Scaling = currBin[3]
         possPairsInRange = currBin[1]
-        avgCC = (1.0*sumCC/possPairsInRange)/observedIntraInRangeSum
-        avgDist = distScaling*(sumDistB4Scaling/currBin[7])
+        try:
+            avgCC = (1.0*sumCC/possPairsInRange)/observedIntraInRangeSum
+        except:
+            print("WARNING - Zero avg. contact in bin. Ensure interaction file is correct.")
+            avgCC = 0
+        try:
+            avgDist = distScaling*(sumDistB4Scaling/currBin[7])
+        except:
+            print("WARNING - Zero avg. distance in bin. Ensure interaction file is correct.")
+            avgDist = 0
         currBin[4]=avgCC
         currBin[5]=avgDist
         y.append(avgCC)
@@ -763,67 +775,78 @@ def fit_Spline(mainDic,x,y,yerr,infilename,outfilename,biasDic,outliersline,outl
     with open(logfile, 'a') as log:
         log.write("\nFitting a univariate spline to the probability means\n"),
         log.write("------------------------------------------------------------------------------------\n"),
-    for i in range(1,len(x)):
-        if x[i]<=x[i-1]:
-            print("ERROR in spline fitting. Regenerate dataset ~ erroneous values found.")
-            print(x[i-1])
-            print(x[i])
-            sys.exit(2)
-    
-    # maximum residual allowed for spline is set to min(y)^2
-    splineError=min(y)*min(y)
+   
+    splineX = None
+    newSplineY = None
+    residual = None 
+    FDRx = None
+    FDRy = None
 
-    # use fitpack2 method -fit on the real x and y from equal occupancy binning
-    ius = UnivariateSpline(x, y, s=splineError)
-    tempMaxX=max(x)
-    tempMinX=min(x)
-    tempList=sorted([dis for dis in mainDic])
-    splineX=[]
-    ### The below for loop will make sure nothing is out of range of [min(x) max(x)]
-    ### Therefore everything will be within the range where the spline is defined
-    for i in tempList:
-        if tempMinX<=i<=tempMaxX:
-            splineX.append(i)
-    splineY=ius(splineX)
-    #print(splineY)
-    #print(yerr)
+    if not interOnly:
+        if outliersdist != None:
+            y = [f for _, f in sorted(zip(x,y), key=lambda pair: pair[0])]
+            x.sort()
+        for i in range(1,len(x)):
+            if x[i]<=x[i-1]:
+                print("ERROR in spline fitting. Distances do not decrease across bins. Ensure interaction file is correct.")
+                print("Avg. distance of bin(i-1)... %s" % x[i-1])
+                print("Avg. distance of bin(i)... %s" % x[i])
+                sys.exit(2)
+        
+        # maximum residual allowed for spline is set to min(y)^2
+        splineError=min(y)*min(y)
+
+        # use fitpack2 method -fit on the real x and y from equal occupancy binning
+        ius = UnivariateSpline(x, y, s=splineError)
+        tempMaxX=max(x)
+        tempMinX=min(x)
+        tempList=sorted([dis for dis in mainDic])
+        splineX=[]
+        ### The below for loop will make sure nothing is out of range of [min(x) max(x)]
+        ### Therefore everything will be within the range where the spline is defined
+        for i in tempList:
+            if tempMinX<=i<=tempMaxX:
+                splineX.append(i)
+        splineY=ius(splineX)
+        #print(splineY)
+        #print(yerr)
 
 
-    ir = IsotonicRegression(increasing=False)
-    newSplineY = ir.fit_transform(splineX,splineY)
-    #print(newSplineY)
-    residual =sum([i*i for i in (y - ius(x))])
+        ir = IsotonicRegression(increasing=False)
+        newSplineY = ir.fit_transform(splineX,splineY)
+        #print(newSplineY)
+        residual =sum([i*i for i in (y - ius(x))])
 
-    if visual==True:
-        xi = np.linspace(min(x),max(x),5*len(x))
-        yi = ius(xi)
+        if visual==True:
+            xi = np.linspace(min(x),max(x),5*len(x))
+            yi = ius(xi)
 
-        print("Plotting %s" % (outfilename + ".png"))
-        plt.clf()
-        fig = plt.figure()
-        ax = fig.add_subplot(2,1,1)
-        plt.plot(myUtils.scale_a_list(splineX,toKb), myUtils.scale_a_list(newSplineY,toProb),'g-',label="spline-"+str(passNo),linewidth=2)
-        plt.errorbar(myUtils.scale_a_list(x,toKb),myUtils.scale_a_list(y,toProb),myUtils.scale_a_list(yerr,toProb),fmt='r.',label="Mean with std. error",linewidth=2) 
-    
-        #plt.ylabel('Contact probability (x10$^{-5}$)',fontsize='large')
-        #plt.xlabel('Genomic distance (kb)',fontsize='large')
-        plt.ylabel('Contact probability (x10$^{-5}$)')
-        plt.xlabel('Genomic distance (kb)')
-        if distLowThres>0 and distUpThres<float("inf"):
-            plt.xlim(myUtils.scale_a_list([distLowThres, distUpThres],toKb))
-        plt.gca().yaxis.set_major_locator( MaxNLocator(nbins = 3, prune=None))
-        ax.legend(loc="upper right")
+            print("Plotting %s" % (outfilename + ".png"))
+            plt.clf()
+            fig = plt.figure()
+            ax = fig.add_subplot(2,1,1)
+            plt.plot(myUtils.scale_a_list(splineX,toKb), myUtils.scale_a_list(newSplineY,toProb),'g-',label="spline-"+str(passNo),linewidth=2)
+            plt.errorbar(myUtils.scale_a_list(x,toKb),myUtils.scale_a_list(y,toProb),myUtils.scale_a_list(yerr,toProb),fmt='r.',label="Mean with std. error",linewidth=2) 
+        
+            #plt.ylabel('Contact probability (x10$^{-5}$)',fontsize='large')
+            #plt.xlabel('Genomic distance (kb)',fontsize='large')
+            plt.ylabel('Contact probability (x10$^{-5}$)')
+            plt.xlabel('Genomic distance (kb)')
+            if distLowThres>0 and distUpThres<float("inf"):
+                plt.xlim(myUtils.scale_a_list([distLowThres, distUpThres],toKb))
+            plt.gca().yaxis.set_major_locator( MaxNLocator(nbins = 3, prune=None))
+            ax.legend(loc="upper right")
 
-        ax = fig.add_subplot(2,1,2)
+            ax = fig.add_subplot(2,1,2)
 
-        plt.loglog(splineX,newSplineY,'g-')
-        plt.errorbar(x, y, yerr=yerr, fmt='r.') # Data
-        if distLowThres>0 and distUpThres<float("inf"):
-            plt.xlim([distLowThres, distUpThres])
-        plt.ylabel('Contact probability (log-scale)')
-        plt.xlabel('Genomic distance (log-scale)')
+            plt.loglog(splineX,newSplineY,'g-')
+            plt.errorbar(x, y, yerr=yerr, fmt='r.') # Data
+            if distLowThres>0 and distUpThres<float("inf"):
+                plt.xlim([distLowThres, distUpThres])
+            plt.ylabel('Contact probability (log-scale)')
+            plt.xlabel('Genomic distance (log-scale)')
 
-        plt.savefig(outfilename+'.png')
+            plt.savefig(outfilename+'.png')
             
 
     # NOW write the calculated pvalues and corrected pvalues in a file
@@ -912,7 +935,7 @@ def fit_Spline(mainDic,x,y,yerr,infilename,outfilename,biasDic,outliersline,outl
         midPoint1=int(words[1])
         chr2=words[2]
         midPoint2=int(words[3])
-        interactionCount=int(words[4])
+        interactionCount=float(words[4])
         p_val=p_vals[count]
         q_val=q_vals[count]
         bias1=biasl[count]

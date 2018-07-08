@@ -22,3 +22,12 @@ Uploading to pip3
 __________________________________________________________________
 
 Took me a while to figure it out
+
+fithic_2.0.4.tgz - 07/08/2018
+-------------------------------
+Update to fit-hi-c's main script
+__________________________________________________________________
+
+* Bias files also accept non gzipped files
+* Fixed bug with outlier removal affecting distance values
+* Updated 'interOnly' to bypass any spline fitting
