@@ -2,6 +2,8 @@
 recursive-include fithic/tests *
 
 include version.log
-include fithic-runner.py
+include ./fithic/fithic-runner.py
+include ./fithic/myStats.py
+include ./fithic/myUtils.py
 
 

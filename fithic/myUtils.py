@@ -125,6 +125,10 @@ class Interaction:
         self.pval=float(x)
     def setQval(self,x):
         self.qval=float(x)
+    def getDistance(self):
+        return self.distance
+    def getCount(self):
+        return self.hitCount
     def getType(self,distLowThres,distUpThres):
         if self.type == 'inter':
             return self.type
