@@ -33,7 +33,9 @@ import matplotlib.pyplot as plt
 from matplotlib.ticker import ScalarFormatter, FormatStrFormatter, MaxNLocator
 from pylab import *
 
-versionStr = "You are using fithic version 2.0.3"
+dir = os.path.dirname(__file__)
+version_py = os.path.join(dir, "_version.py")
+exec(open(version_py).read())
 
 def parse_args(args):
     parser = argparse.ArgumentParser(description="Check the help flag")
@@ -56,7 +58,7 @@ def parse_args(args):
                       supply the resolution of the dataset here; otherwise, \
                       please use a value of 0 if the data is not fixed size." \
                       , required=True)
-    
+
     parser.add_argument("-t", "--biases", dest="biasfile",\
                         help="RECOMMENDED: biases calculated by\
                         ICE or KR norm for each locus are read from BIASFILE",\
@@ -113,7 +115,8 @@ def parse_args(args):
                       of bias values to discard. DEFAULT is 2"\
                       , required=False)
 
-    parser.add_argument("-V", "--version", action="version",version=versionStr)
+    parser.add_argument("-V", "--version", action="version",version="Fit-Hi-C {}".format(__version__)\
+                      ,help="Print version and exit")
 
     return parser.parse_args()
 

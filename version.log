@@ -31,3 +31,8 @@ __________________________________________________________________
 * Bias files also accept non gzipped files
 * Fixed bug with outlier removal affecting distance values
 * Updated 'interOnly' to bypass any spline fitting
+
+fithic_2.0.5.tgz - 08/25/2018
+-------------------------------
+Finalizing the transition to bioconda
+__________________________________________________________________

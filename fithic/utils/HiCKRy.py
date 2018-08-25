@@ -76,7 +76,7 @@ def removeZeroDiagonalCSR(mtx, i):
     toRemove = []
     ctr = 0
     rowSums = mtx.sum(axis=0)
-    rowSums = list(np.array(rowSums).reshape(-1,)) 
+    rowSums = list(np.array(rowSums).reshape(-1,))
     rowSums = list(enumerate(rowSums))
     #for value in rowSums:
     #    if int(value[1]) == 0:
@@ -115,7 +115,6 @@ def addZeroBiases(lst, vctr):
     for values in lst:
         vctr = np.insert(vctr,values,-1,axis=0)
     return vctr
-
 
 def dropcols_coo(M, idx_to_drop):
     idx_to_drop = np.unique(idx_to_drop)
@@ -256,7 +255,16 @@ def outputBias(biasCol, revFrag, outputFilePath):
             ctr += 1
 
 def main():
-    args = parse_args(sys.argv[1:])
+    x = np.array([[1,2,3],[2,1,4],[3,4,5]])
+    print(x)
+    print(computeBiasVector(knightRuizAlg(x)[0]))
+    x = np.array([[3,1,2],[1,7,1],[2,1,4]])
+    print(x)
+    print(computeBiasVector(knightRuizAlg(x)[0]))
+    x = np.array([[3,1,2,0,0,0],[1,7,1,0,0,0],[2,1,4,0,0,0],[0,0,0,1,2,3],[0,0,0,2,1,4],[0,0,0,3,4,5]])
+    print(x)
+    print(computeBiasVector(knightRuizAlg(x)[0]))
+    args = parse_args(sys.argv[3:])
     matrix,revFrag = loadfastfithicInteractions(args.interactions, args.fragments)
     if args.percentOfSparseToRemove:
         bias = returnBias(matrix, args.percentOfSparseToRemove)

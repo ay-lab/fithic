@@ -1,11 +1,15 @@
 from setuptools import setup
 from setuptools import find_packages
 
+
+version_py = "fithic/_version.py"
+exec(open(version_py).read())
+
 setup(
     name = "fithic",
-    version = '2.0.4',
+    version =__version__,
     description = 'Hi-C Analysis software created and maintained by the Ay Lab',
-    url = 'http://github.com/ay-lab/fithic/tree/development',
+    url = 'http://github.com/ay-lab/fithic/',
     entry_points = {
         "console_scripts": ['fithic = fithic.fithic:main']
         },
