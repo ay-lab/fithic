@@ -1,19 +1,50 @@
-# **Fit-Hi-C**
+[![install with bioconda](https://img.shields.io/badge/install%20with-bioconda-brightgreen.svg?style=flat-square)](http://bioconda.github.io/recipes/fithic/README.html)
+[![Anaconda-Server Badge](https://anaconda.org/bioconda/fithic/badges/version.svg)](https://anaconda.org/bioconda/fithic)
+[![Anaconda-Server Badge](https://anaconda.org/bioconda/fithic/badges/downloads.svg)](https://anaconda.org/bioconda/fithic)
+[![Anaconda-Server Badge](https://anaconda.org/bioconda/fithic/badges/license.svg)](https://anaconda.org/bioconda/fithic)
+
 Fit-Hi-C is a tool for assigning statistical confidence estimates to chromosomal contact maps produced by genome architecture assays.
 
 Fit-Hi-C was initially developed by Ferhat Ay, Timothy Bailey, and William Noble January 19th, 2014. It is currently maintained and updated by Ferhat Ay (ferhatay@lji<span></span>&#46;org) and Arya Kaul (akaul@lji<span></span>&#46;org) at the [Ay Lab](http://www.lji.org/faculty-research/labs/ay/#overview) in the La Jolla Institute for Allergy and Immunology.
 
 Please use the [Google Group](https://groups.google.com/forum/#!forum/fithic) for discussions/bug reports/analysis questions. Sending an email to fithic@googlegroups<span></span>&#46;com will also post directly to the Group.
 
-## How-to Install
-Fit-Hi-C may be installed through one of two ways. 
+## Installation
+Fit-Hi-C may be installed through one of three ways. 
 
- - Github
+ 1. Bioconda
+ 2. Github
+ 3. Pip
+
+Out of all of the following, we recommend installing through bioconda to automatically install all dependencies.
+
+### Bioconda Installation
+
+If this is your first time using the conda distribution system, we recommend using Miniconda as your preferred conda distribution system. This is chosen because it is the most lightweight out of all of Anaconda's distribution system; however, you're welcome to use any one you would like. More information on each may be found [here](http://bioconda.github.io/faqs.html#conda-anaconda-minconda). 
+
+Once your conda distribution platform has been set up, you need to add the `bioconda` channel to access the bioinformatics recipes hosted there. If you're unfamiliar with `bioconda`, I highly recommend you check out the wonderful work they've done ([link here!] (http://bioconda.github.io/index.html). To set up the `bioconda` channel, run the following:
+```
+conda config --add channels defaults
+conda config --add channels conda-forge
+conda config --add channels bioconda
+```
+Afterwards, simply run:
+```
+conda install fithic
+```
+This command will automatically install a command-line executable version of Fit-Hi-C along with all of its dependencies. Please run:
+
+```
+fithic -V
+```
+and ensure that the version number matches the version number in the `Anaconda Cloud` badge at the top of this README.
 
 ### Github Installation
-Run:
+Install `git` and then run:
+```
+git clone https://github.com/ay-lab/fithic.git
+```
 
-    git clone https://github.com/ay-lab/fithic.git
 You will need the following dependencies installed to run Fit-Hi-C:
 
  - Python 3.+
@@ -23,38 +54,35 @@ You will need the following dependencies installed to run Fit-Hi-C:
  - SortedContainers 2.0.+
  - Matplotlib 2.2.+
 
-This will create a direct clone of Fit-Hi-C in your working directory with the name fithic. You may now run Fit-Hi-Cv.2 by running `git checkout development` and then calling the `fithic.py` file in this directory:
+This will create a direct clone of Fit-Hi-C in your working directory with the name fithic. You may now run Fit-Hi-Cv.2 by calling the `fithic.py` file in the `fithic/` directory:
 
 ```
-python3 fithic.py --ARGUMENTS
+python fithic.py --ARGUMENTS
 ```
 
-Cloning into the repository **does not** automatically install the command line version of Fit-Hi-C, and if you desire that functionality follow the PyPi installation instructions. 
+Cloning into the repository **does not** automatically install the command line version of Fit-Hi-C, and if you desire that functionality follow the other installation instructions. 
 
 ### PyPi Installation
 Ensure that you have `Python3` successfully installed on your computer.
 Then run:
 ```
-pip3 fithic
+pip install fithic
 ```
-After this is done, run `fithic --help` to ensure all necessary dependencies have been installed. While it should have happened automatically, if it has not installed properly merely run:
+After this is done, run `fithic --help` to ensure all necessary dependencies have been installed. Some users report that this automatically installs all dependencies, while some say it does not. If `fithic` does not work properly, install the necessary dependencies using `pip`. i.e.
 
 ```
-pip3 DEPENDENCY
+pip install DEPENDENCY
 ```
-For each of the dependencies listed above.
 
-### Timing
-Installation should take no longer than 3 minutes.
-
-## Testing Fit-Hi-C Installation
+## Testing
 A good part of any software installation is being able to run tests on the correct installation of it. 
 
-### PyPi Installation
+### Bioconda/PyPi Installation
 Run the command:
-
-    svn export https://github.com/ay-lab/fithic/trunk/fithic/tests/
-(If you receive an error, ensure that you have svn installed correctly.)  This command will generate a tests folder in your working directory. Going into that and running `./run_tests-pypi.sh` will automatically run Fit-Hi-C on a variety of data and if everything was installed correctly you should see a final message that Fit-Hi-C executed correctly!
+```
+svn export https://github.com/ay-lab/fithic/trunk/fithic/tests/
+```
+(If you receive an error, ensure that you have svn installed correctly.)  This command will generate a tests folder in your working directory. Going into that and running `./run_tests-cli.sh` will automatically run Fit-Hi-C on a variety of data and if everything was installed correctly you should see a final message that Fit-Hi-C executed correctly!
 
 ### Github Installation
 Simply navigate into the repo and run `./fithic/tests/run_tests-git.sh`. If everything is working fine, you will see a final message that Fit-Hi-C executed correctly!
@@ -92,10 +120,8 @@ Much less scary! From the above sentence, the only real phrase that could be mis
 Fit-Hi-C tells you what contacts are *significant.* This is incredibly important because not all of the contacts seen in your Hi-C data are truly unexpected interactions. By assigning statistical confidence to each interaction, you will be able to determine which interactions are the most important and consequently, which ones warrant further investigation.  
 
 
-
 ## Running Fit-Hi-C
 ### Arguments
-
 
 ----------
 
@@ -233,6 +259,7 @@ Numerical value indicating resolution of fixed-size dataset being analyzed. If n
 *Default* - 2
 
 *Description* - bias values above this number will be discarded 
+
 ----------
 
 
@@ -290,7 +317,7 @@ A useful script if you would like to use HiC-Pro and Fit-Hi-C consecutively as p
 
     python utils/hicpro2fithic.py --help
 
-And familiarize yourself with its options. If you are a PyPi installer, you may download the script through
+And familiarize yourself with its options. If you are a Bioconda/PyPi installer, you may download the script through
 
     wget https://raw.githubusercontent.com/ay-lab/fithic/master/utils/hicpro2fithic.py
 
@@ -299,7 +326,7 @@ Particularly helpful if you know the resolution of your data and want to automat
 
     python utils/Create_FitHiC_Fragments.py --help
 
-And familiarize yourself with its options. If you are a PyPi installer, you may download the script through
+And familiarize yourself with its options. If you are a Bioconda/PyPi installer, you may download the script through
 
     wget https://raw.githubusercontent.com/ay-lab/fithic/master/utils/Create_FitHiC_Fragments.py
 
