@@ -3,8 +3,6 @@
 [![Anaconda-Server Badge](https://anaconda.org/bioconda/fithic/badges/downloads.svg)](https://anaconda.org/bioconda/fithic)
 [![Anaconda-Server Badge](https://anaconda.org/bioconda/fithic/badges/license.svg)](https://anaconda.org/bioconda/fithic)
 
-Fit-Hi-C is a tool for assigning statistical confidence estimates to chromosomal contact maps produced by genome architecture assays.
-
 Fit-Hi-C was initially developed by Ferhat Ay, Timothy Bailey, and William Noble January 19th, 2014. It is currently maintained and updated by Ferhat Ay (ferhatay@lji<span></span>&#46;org) and Arya Kaul (akaul@lji<span></span>&#46;org) at the [Ay Lab](http://www.lji.org/faculty-research/labs/ay/#overview) in the La Jolla Institute for Allergy and Immunology.
 
 Please use the [Google Group](https://groups.google.com/forum/#!forum/fithic) for discussions/bug reports/analysis questions. Sending an email to fithic@googlegroups<span></span>&#46;com will also post directly to the Group.
@@ -22,7 +20,7 @@ Out of all of the following, we recommend installing through bioconda to automat
 
 If this is your first time using the conda distribution system, we recommend using Miniconda as your preferred conda distribution system. This is chosen because it is the most lightweight out of all of Anaconda's distribution system; however, you're welcome to use any one you would like. More information on each may be found [here](http://bioconda.github.io/faqs.html#conda-anaconda-minconda). 
 
-Once your conda distribution platform has been set up, you need to add the `bioconda` channel to access the bioinformatics recipes hosted there. If you're unfamiliar with `bioconda`, I highly recommend you check out the wonderful work they've done ([link here!] (http://bioconda.github.io/index.html). To set up the `bioconda` channel, run the following:
+Once your conda distribution platform has been set up, you need to add the `bioconda` channel to access the bioinformatics recipes hosted there. If you're unfamiliar with `bioconda`, I highly recommend you check out the wonderful work they've done ( [link here!](http://bioconda.github.io/index.html)). To set up the `bioconda` channel, run the following:
 ```
 conda config --add channels defaults
 conda config --add channels conda-forge
@@ -294,7 +292,7 @@ following names:
 The first file will report the results of equal occupancy binning in
 five fields. An example of which is shown below:
 
-| avgGenomicDist| contactProbability | standardError|noOfLocusPairs|totalOfContactCounts|
+| avgGenomicDist| contactProb | stdErr |numLocusPairs|CCtotal|
 |---|---|---|---|---|
 | 20077 | 2.38e-05 |2.11e-06|210|19574
 | 20228  | 1.88e-05 |1.44e-06|268|19662
