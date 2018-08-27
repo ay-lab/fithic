@@ -309,28 +309,99 @@ more columns to these fields, namely p-value and q-value.
 |1|15000|1|55000|12|2.544592e-02|1.202603e-01
 |...|...|...|...|...|..|..|
 
-### Utils
-#### hicpro2fithic
-A useful script if you would like to use HiC-Pro and Fit-Hi-C consecutively as part of a pipeline. Run
+## Utilities
 
-    python utils/hicpro2fithic.py --help
+These utilities are provided as part of Fit-Hi-C (`/fithic/utils/`) to aid in certain common pre-processing/post-processing steps. They are as follows:
 
-And familiarize yourself with its options. If you are a Bioconda/PyPi installer, you may download the script through
+- HiCKRy.py (Pre-processing. Generates --bias calculation)
+- HiCPro2FitHiC.py (Pre-processing. Generates --interactions, --fragments, and --bias inputs)
+- createFitHiCFragments-fixedsize.py (Pre-processing. Generates --fragments input)
+- createFitHiCFragments-nonfixedsize.sh (Pre-processing. Generates --fragments input)
+- validPairs2FitHiC-fixedSize.sh (Pre-processing. Generates --interactions input)
+- createFitHiCHTMLout.sh (Post-processing. Generates HTML page describing Fit-Hi-C run)
 
-    wget https://raw.githubusercontent.com/ay-lab/fithic/master/utils/hicpro2fithic.py
+### HiCKRy
+Regardless of the implementation, we strongly recommend the use of a normalization method in order to have meaningful results for further analysis. The only way for Fit-Hi-C to utilize data from Hi-C normalization is through the bias files. As long as the bias value are scaled to have an average of 1 and high values represent loci with higher overall raw counts, Fit-Hi-C will be able to use them in significance assignment. 
 
-#### Create_FitHiC_Fragments
-Particularly helpful if you know the resolution of your data and want to automatically generate the fragsFile.
+HiCKRy is an in-house version of Hi-C contact map normalization using the Knight-Ruiz algorithm for fast matrix balancing. It takes three arguments:
+```
+-i,--interactions       Path to the interactions file to generate bias values. Required.
+-f, --fragments            Path to the interactions file to generate bias values. Required.
+-o, --output            Full path to output the generated bias file to. Required.
+-x, --percentOfSparseToRemove     Percent of sparse low contact count loci to remove. The default value is 0.05.
+```
+It then outputs a bias file in the format of Fit-Hi-C's `-t` input option.
 
-    python utils/Create_FitHiC_Fragments.py --help
+### HiCPro2FitHiC
+HiC-Pro is a common Hi-C mapping tool used to extract information from the raw reads after the Hi-C assay is run. The following script enables the generation of Fit-Hi-C input directly from HiC-Pro's output.
 
-And familiarize yourself with its options. If you are a Bioconda/PyPi installer, you may download the script through
+It takes the following arguments:
+```
+-i MATRIX, --matrix MATRIX     Input matrix file with raw contact frequencies. Required.
+-b BED, --bed BED     BED file with bins coordinates. Required.
+-s BIAS, --bias BIAS     The bias file provided after IC normalization.
+-o OUTPUT, --output OUTPUT     Output path.
+-r RESOLUTION, --resolution RESOLUTION     Resolution of the matrix.
+```
+The output is the contact maps and fragments file in the format of Fit-Hi-C.
 
-    wget https://raw.githubusercontent.com/ay-lab/fithic/master/utils/Create_FitHiC_Fragments.py
+### createFitHiCFragments-fixedsize
+Generates the fragments file if using a fixed-size resolution with your Hi-C data.
+
+The script takes the following arguments:
+```
+--chrLens         Path to a file describing chromosome lengths of the model organism. Required.
+--resolution      Resolution of dataset being studied. Required.
+--outFile         Full path to the output file desired.
+```
+
+Output is a fragments file in the format of Fit-Hi-C.
+
+### createFitHiCFragments-nonfixedsize
+
+A bash script to generate the fragments file if the Hi-C data is RE-digested. Note, order of arguments is critical.
+
+```
+bash createFitHiCFragments-nonfixedsize.sh [outputFile] [RE] [fastaReferenceGenome]
+        
+[outputFile]               A desired output file path. Required.
+[RE]                       Either the name of the restriction enzyme used, or the cutting position using “^”. For example, A^AGCTT for HindIII. Required.
+[fastaReferenceGenome]     A reference genome in fasta format. Required.
+```
+
+### validPairs2FitHiC-fixedSize
+
+A bash script to generate the contact maps input for Fit-Hi-C from a valid pairs file. Note, order of arguments is critical.
+
+```
+bash validPairs2FitHiC-fixedSize.sh [resolution] [libraryName] [validPairsFile]        
+
+[resolution]         The resolution of the dataset being studied. Required.
+[libraryName]        The prefix of the file generated. Required.
+[validPairsFile]     A textfile containing the validPairs. Required.
+```
+
+### createFitHiCHTMLout
+
+A bash script to generate an HTML report of the Fit-Hi-C run. Note, works best if Fit-Hi-C was run with `--visual` option.
+
+```
+bash createFitHiCHTMLout.sh [Library Name] [No. of passes] [Fit-Hi-C output folder]
+        
+[Library Name]            The library name (-l option) used during Fit-Hi-C’s run
+[No. of passes]            The number of spline passes conducted by the Fit-Hi-C run
+[Fit-Hi-C output folder]    Path to the output folder for that Fit-Hi-C run (-o option)
+```
+
 
 ## Citing Fit-Hi-C
 If Fit-Hi-C was used in your analysis, please issue the following citation:
-doi: 10.1101/gr.160374.113 or Ferhat Ay, Timothy L. Bailey, William S. Noble. 2014. "Statistical confidence estimation for Hi-C data reveals regulatory chromatin contacts." Genome Research. 24(6):999-1011, 2014. doi: 10.1101/gr.160374.113.
+
+doi: 10.1101/gr.160374.113 
+
+or
+
+Ferhat Ay, Timothy L. Bailey, William S. Noble. 2014. "Statistical confidence estimation for Hi-C data reveals regulatory chromatin contacts." Genome Research. 24(6):999-1011, 2014. doi: 10.1101/gr.160374.113.
 
 ## License
 Copyright (c), 2012, University of Washington
