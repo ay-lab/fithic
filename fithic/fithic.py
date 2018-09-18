@@ -677,6 +677,12 @@ def read_biases(infilename):
         log.write("5th quantile of biases: "+str(botQ)+"\n")
         log.write("50th quantile of biases: "+str(med)+"\n")
         log.write("95th quantile of biases: "+str(topQ)+"\n")
+    infile.close()
+    
+    try:
+        infile =gzip.open(infilename, 'rt')
+    except:
+        infile = open(infilename, 'r')
     totalC=0
     discardC=0
     for line in infile:
