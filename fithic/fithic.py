@@ -105,12 +105,12 @@ def parse_args(args):
                       regions to study (intraOnly, interOnly, All) \
                       DEFAULT is intraOnly", required=False)
     
-    parser.add_argument("-tL", "--biasLowerBound", dest="biasLowerBound",\
+    parser.add_argument("-tL", "--biasLowerBound", dest="biasLowerBound", type=float, \
                       help="OPTIONAL: this flag is used to determine the lower bound\
                       of bias values to discard. DEFAULT is 0.5"\
                       , required=False)
     
-    parser.add_argument("-tU", "--biasUpperBound", dest="biasUpperBound",\
+    parser.add_argument("-tU", "--biasUpperBound", dest="biasUpperBound", type=float, \
                       help="OPTIONAL: this flag is used to determine the upper bound\
                       of bias values to discard. DEFAULT is 2"\
                       , required=False)
@@ -659,6 +659,8 @@ def generate_FragPairs(binStats, fragsfile, resolution):
 
 
 def read_biases(infilename):
+    global biasLowerBound
+    global biasUpperBound
     startt = time.time()
     biasDic={}
 
@@ -677,6 +679,12 @@ def read_biases(infilename):
         log.write("5th quantile of biases: "+str(botQ)+"\n")
         log.write("50th quantile of biases: "+str(med)+"\n")
         log.write("95th quantile of biases: "+str(topQ)+"\n")
+    infile.close()
+    
+    try:
+        infile =gzip.open(infilename, 'rt')
+    except:
+        infile = open(infilename, 'r')
     totalC=0
     discardC=0
     for line in infile:
