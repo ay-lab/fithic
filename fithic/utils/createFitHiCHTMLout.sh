@@ -15,6 +15,18 @@
 libName=$1 # name of the library provided to fithic python script 
 noOfPasses=$2 # assumes this is 1 unless otherwise specified
 output=$3 #path to directory of output folder from Fit-Hi-C run
+
+resolution_used="NONE"
+for i in $output/*fithic_pass*; do
+    resolution_used=$(echo $i | awk -F [.] '{print $(NF-1)}')
+done
+
+if [[ $resolution_used =~ .*res.* ]]; then
+    echo "Resolution used... $resolution_used"
+else
+    echo "No resolution used."
+fi
+
 html=$output/$libName.results.html
 echo \<html\> > $html
 echo \<head\>\<title\> Fit-Hi-C Report for $libName \</title\>\</head\> >>$html
@@ -74,12 +86,19 @@ for p in `seq 1 $noOfPasses`; do
 	
 	echo \<tr\> >> $html
 	echo \<td\> Pass $p \</td\> >> $html
-	txt=$output/$libName.fithic_pass$p.txt
-	echo \<td\> \<a href=\"$txt\"\> Equal occupancy bin statistics \</a\>\</td\> >> $html
-	png=$output/$libName.spline_pass$p.significances.txt.gz
-	echo \<td\> \<a href=\"$png\"\> Significance estimates \(p-, q-values\) [gzipped] \</a\>\</td\> >> $html
-	echo \</tr\> >> $html
-	
+    if [[ $resolution_used =~ .*res.* ]]; then
+        txt=$output/$libName.fithic_pass$p.$resolution_used.txt
+        echo \<td\> \<a href=\"$txt\"\> Equal occupancy bin statistics \</a\>\</td\> >> $html
+        png=$output/$libName.spline_pass$p.$resolution_used.significances.txt.gz
+        echo \<td\> \<a href=\"$png\"\> Significance estimates \(p-, q-values\) [gzipped] \</a\>\</td\> >> $html
+        echo \</tr\> >> $html
+    else
+        txt=$output/$libName.fithic_pass$p.txt
+        echo \<td\> \<a href=\"$txt\"\> Equal occupancy bin statistics \</a\>\</td\> >> $html
+        png=$output/$libName.spline_pass$p.significances.txt.gz
+        echo \<td\> \<a href=\"$png\"\> Significance estimates \(p-, q-values\) [gzipped] \</a\>\</td\> >> $html
+        echo \</tr\> >> $html
+    fi
 	echo \<tr\> \</tr\> >> $html
 	echo \<tr\> \</tr\> >> $html
 done
