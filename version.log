@@ -36,3 +36,11 @@ fithic_2.0.5.tgz - 08/25/2018
 -------------------------------
 Finalizing the transition to bioconda
 __________________________________________________________________
+
+fithic_2.0.6.tgz - 01/15/2019
+-------------------------------
+Bias File Big Fix
+__________________________________________________________________
+* Fixed bug with reading in of bias values
+* Added new util (createFitHiCContacts-hic.sh)
+* Updated README with this util
