@@ -393,6 +393,18 @@ bash createFitHiCHTMLout.sh [Library Name] [No. of passes] [Fit-Hi-C output fold
 [Fit-Hi-C output folder]    Path to the output folder for that Fit-Hi-C run (-o option)
 ```
 
+### createFitHiCContacts-hic.sh
+
+A bash script to create Fit-Hi-C contacts from .hic files.
+
+```
+bash createFitHiCContacts-hic.sh [Juicer's dump command] [chr1] [chr2] [Output file name]
+        
+[Juicer's dump command]    Full path to the output of Juicer's dump command
+[chr1]                     Chromosome 1 of the argument used in Juicer's dump command
+[chr2]                     Chromosome 2 of the argument used in Juicer's dump command
+[Output file name]          Name of output file
+```
 
 ## Citing Fit-Hi-C
 If Fit-Hi-C was used in your analysis, please issue the following citation:

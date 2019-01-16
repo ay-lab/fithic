@@ -105,12 +105,12 @@ def parse_args(args):
                       regions to study (intraOnly, interOnly, All) \
                       DEFAULT is intraOnly", required=False)
     
-    parser.add_argument("-tL", "--biasLowerBound", dest="biasLowerBound",\
+    parser.add_argument("-tL", "--biasLowerBound", dest="biasLowerBound", type=float, \
                       help="OPTIONAL: this flag is used to determine the lower bound\
                       of bias values to discard. DEFAULT is 0.5"\
                       , required=False)
     
-    parser.add_argument("-tU", "--biasUpperBound", dest="biasUpperBound",\
+    parser.add_argument("-tU", "--biasUpperBound", dest="biasUpperBound", type=float, \
                       help="OPTIONAL: this flag is used to determine the upper bound\
                       of bias values to discard. DEFAULT is 2"\
                       , required=False)
@@ -659,42 +659,40 @@ def generate_FragPairs(binStats, fragsfile, resolution):
 
 
 def read_biases(infilename):
+    global biasLowerBound
+    global biasUpperBound
     startt = time.time()
     biasDic={}
 
     rawBiases=[]
-    try:
-        infile =gzip.open(infilename, 'rt')
-    except:
-        infile = open(infilename, 'r')
-    for line in infile:
-        words=line.rstrip().split()
-        chr=words[0]; midPoint=int(words[1]); bias=float(words[2])
-        if bias!=1.0:
-           rawBiases.append(bias)
-    botQ,med,topQ=mquantiles(rawBiases,prob=[0.05,0.5,0.95])
-    with open(logfile, 'a') as log:
-        log.write("5th quantile of biases: "+str(botQ)+"\n")
-        log.write("50th quantile of biases: "+str(med)+"\n")
-        log.write("95th quantile of biases: "+str(topQ)+"\n")
+    with gzip.open(infilename, 'rt') as infile:
+        for line in infile:
+            words=line.rstrip().split()
+            chrom=words[0]; midPoint=int(words[1]); bias=float(words[2])
+            if bias!=1.0:
+               rawBiases.append(bias)
+        botQ,med,topQ=mquantiles(rawBiases,prob=[0.05,0.5,0.95])
+        with open(logfile, 'a') as log:
+            log.write("5th quantile of biases: "+str(botQ)+"\n")
+            log.write("50th quantile of biases: "+str(med)+"\n")
+            log.write("95th quantile of biases: "+str(topQ)+"\n")
     totalC=0
     discardC=0
-    for line in infile:
-        words=line.rstrip().split()
-        chr=words[0]; midPoint=int(words[1]); bias=float(words[2]);
-        if bias<biasLowerBound:
-            bias=-1 #botQ
-            discardC+=1
-        elif bias>biasUpperBound:
-            bias=-1 #topQ
-            #bias=1
-            discardC+=1
-        totalC+=1
-        if chr not in biasDic:
-            biasDic[chr]={}
-        if midPoint not in biasDic[chr]:
-            biasDic[chr][midPoint]=bias
-    infile.close()
+    with gzip.open(infilename, 'rt') as infile:
+        for line in infile:
+            words=line.rstrip().split()
+            chrom=words[0]; midPoint=int(words[1]); bias=float(words[2]);
+            if bias<biasLowerBound or math.isnan(bias):
+                bias=-1 #botQ
+                discardC+=1
+            elif bias>biasUpperBound:
+                bias=-1 #topQ
+                discardC+=1
+            totalC+=1
+            if chrom not in biasDic:
+                biasDic[chrom]={}
+            if midPoint not in biasDic[chrom]:
+                biasDic[chrom][midPoint]=bias
     with open(logfile, 'a') as log:
         log.write("Out of " + str(totalC) + " loci " +str(discardC) +" were discarded with biases not in range [0.5 2]\n\n" )
     endt = time.time()
@@ -873,10 +871,17 @@ def fit_Spline(mainDic,x,y,yerr,infilename,outfilename,biasDic,outliersline,outl
         bias1=1.0; bias2=1.0;  # assumes there is no bias to begin with
         # if the biasDic is not null sets the real bias values
         if biasDic:
-            if ch1 in biasDic and mid1 in biasDic[ch1]:
-                bias1=biasDic[ch1][mid1]
-            if ch2 in biasDic and mid2 in biasDic[ch2]:
-                bias2=biasDic[ch2][mid2]
+            if (ch1 not in biasDic) or (ch2 not in biasDic):
+                print("Error. Bias file does not contain chromosome %s or %s. \
+                Please ensure you're using correct file." % (ch1, ch2))
+                sys.exit(2)
+            if (mid1 not in biasDic[ch1]) or (mid2 not in biasDic[ch2]):
+                print("Error. Bias file does not contain midpoint %s or %s. \
+                Please ensure you're using the correct file and/or resolution \
+                argument" % (mid1, mid2))
+                sys.exit(2)
+            bias1=biasDic[ch1][mid1]
+            bias2=biasDic[ch2][mid2]
         biasl.append(bias1)
         biasr.append(bias2)
         if (bias1<0 or bias2<0) and interactionType !='inter':
