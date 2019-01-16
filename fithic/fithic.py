@@ -105,12 +105,12 @@ def parse_args(args):
                       regions to study (intraOnly, interOnly, All) \
                       DEFAULT is intraOnly", required=False)
     
-    parser.add_argument("-tL", "--biasLowerBound", dest="biasLowerBound",\
+    parser.add_argument("-tL", "--biasLowerBound", dest="biasLowerBound", type=float, \
                       help="OPTIONAL: this flag is used to determine the lower bound\
                       of bias values to discard. DEFAULT is 0.5"\
                       , required=False)
     
-    parser.add_argument("-tU", "--biasUpperBound", dest="biasUpperBound",\
+    parser.add_argument("-tU", "--biasUpperBound", dest="biasUpperBound", type=float, \
                       help="OPTIONAL: this flag is used to determine the upper bound\
                       of bias values to discard. DEFAULT is 2"\
                       , required=False)
@@ -659,6 +659,8 @@ def generate_FragPairs(binStats, fragsfile, resolution):
 
 
 def read_biases(infilename):
+    global biasLowerBound
+    global biasUpperBound
     startt = time.time()
     biasDic={}
 
@@ -685,7 +687,6 @@ def read_biases(infilename):
                 discardC+=1
             elif bias>biasUpperBound:
                 bias=-1 #topQ
-                #bias=1
                 discardC+=1
             totalC+=1
             if chrom not in biasDic:
@@ -870,9 +871,16 @@ def fit_Spline(mainDic,x,y,yerr,infilename,outfilename,biasDic,outliersline,outl
         bias1=1.0; bias2=1.0;  # assumes there is no bias to begin with
         # if the biasDic is not null sets the real bias values
         if biasDic:
-            #if ch1 in biasDic and mid1 in biasDic[ch1]:
+            if (ch1 not in biasDic) or (ch2 not in biasDic):
+                print("Error. Bias file does not contain chromosome %s or %s. \
+                Please ensure you're using correct file." % (ch1, ch2))
+                sys.exit(2)
+            if (mid1 not in biasDic[ch1]) or (mid2 not in biasDic[ch2]):
+                print("Error. Bias file does not contain midpoint %s or %s. \
+                Please ensure you're using the correct file and/or resolution \
+                argument" % (mid1, mid2))
+                sys.exit(2)
             bias1=biasDic[ch1][mid1]
-            #if ch2 in biasDic and mid2 in biasDic[ch2]:
             bias2=biasDic[ch2][mid2]
         biasl.append(bias1)
         biasr.append(bias2)
