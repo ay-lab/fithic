@@ -38,7 +38,11 @@ echo \<p\> Displaying results of the Fit-Hi-C run for $libName.\</p\> >>$html
 
 echo \<p\> For detailed log of the run please see this \<a href=$output/$libName.fithic.log\> log file\</a\> \</p\> >>$html
 
-echo \<p\> Final significance values \(p-values, q-values\) after specified number of refinement steps can be downloaded from \<a href=$output/$libName.spline_pass$noOfPasses.significances.txt.gz\> this link\</a\> \</p\> >>$html
+if [[ $resolution_used =~ .*res.* ]]; then
+    echo \<p\> Final significance values \(p-values, q-values\) after specified number of refinement steps can be downloaded from \<a href=$output/$libName.spline_pass$noOfPasses.$resolution_used.significances.txt.gz\> this link\</a\> \</p\> >>$html
+else
+    echo \<p\> Final significance values \(p-values, q-values\) after specified number of refinement steps can be downloaded from \<a href=$output/$libName.spline_pass$noOfPasses.significances.txt.gz\> this link\</a\> \</p\> >>$html
+fi
 
 echo \</br\> >>$html
 if [[ $noOfPasses -gt 1 ]]; then
