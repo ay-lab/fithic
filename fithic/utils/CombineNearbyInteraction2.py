@@ -87,14 +87,14 @@ def parse_args(args):
     parser.add_argument("-o", "--OutFile", help="Output merged gzipped interaction file.", required=True)
     parser.add_argument("-r", "--resolution", help="Resolution of Fit-Hi-C run.", required=True)
     parser.add_argument("-c", "--conn", help="Rule of connectivity (8 or 4). Default is 8.", required=False, default=8, type=int, dest="connectivity_rule")
+    parser.add_argument("-q", "--qvalue_threshold", type=float, help="Q-value threshold to utilize for significant interactions. Default is 1e-5", default=(10**-5))
     parser.add_argument("-p", "--percent", dest="TopPctElem", type=int, help="Percentage of elements to be selected from each connected component. Default: 100, means all loops would be considered. If specified as 0, only the most significant loops from each component would be selected. For any number x between 0 and 100, top x%% of the loops in a component, considering both statistical significance and contact count, would considered for inclusion, subject to the bin and neighborhood contraints.", default=100)
     parser.add_argument("-n", "--Neigh", dest="NeighborHoodBin", type=int, help="Positive integer (default: 2 with 5 Kb bin size) means that if a loop is included in the final set, loops involving within 2x2 neighborhood of both the bins would be discarded. Applicable only if --percent > 0. Difference in bin size other than 5000 may prompt user to change this value.", default=2)
     parser.add_argument("-s","--order", dest="SortOrder", type=int, help="Binary variable indicating the sorting order of the given significance values. Default 0, means sorting is done by ascending order. If specified 1, sorting is done by descending (reverse) order.", default=0)
-    parser.add_argument("-x", "--qvaluecutoff", dest="limit", type=float, help="What q-value threshold to use when filterin the Fit-Hi-C results. Default is 0.01", default=0.01)
-    parser.add_argument("--cccol", dest="CCCol", type=int, help="Column number storing the contact count. Default: 7.", default=7)    
-    parser.add_argument("--headerInp", dest="headerInp", type=int, help="If 1, indicates that input interaction file has a header line (such as field names). Default 1.", default=1)
-    parser.add_argument("--qcol", dest="QValCol", type=int, help="Column number storing the q-value (or any measure of statistical significance). Default: 0, means the last column of the given interaction file. Any non-zero value would prompt the user to check the corresponding column.", default=0)
-    parser.add_argument("--pcol", dest="PValCol", type=int, help="Column number storing the p-value (or any measure of statistical significance). Default: 0, means the second last column of the given interaction file. Any non-zero value would prompt the user to check the corresponding column.", default=0)
+    #parser.add_argument("--cccol", dest="CCCol", type=int, help="Column number storing the contact count. Default: 7.", default=7)
+    #parser.add_argument("--headerInp", dest="headerInp", type=int, help="If 1, indicates that input interaction file has a header line (such as field names). Default 1.", default=1)
+    #parser.add_argument("--qcol", dest="QValCol", type=int, help="Column number storing the q-value (or any measure of statistical significance). Default: 0, means the last column of the given interaction file. Any non-zero value would prompt the user to check the corresponding column.", default=0)
+    #parser.add_argument("--pcol", dest="PValCol", type=int, help="Column number storing the p-value (or any measure of statistical significance). Default: 0, means the second last column of the given interaction file. Any non-zero value would prompt the user to check the corresponding column.", default=0)
     return parser.parse_args()
 
 #===============================================
@@ -116,16 +116,20 @@ def main():
     else:
         sys.exit("Output file is not specified - quit !!")
 
+    qval_threshold = float(options.qvalue_threshold)
     bin_size = int(options.resolution)
-    headerInp = int(options.headerInp)
+    headerInp = 1
     connectivity_rule = int(options.connectivity_rule)
     TopPctElem = int(options.TopPctElem)
     NeighborHoodBinThr = (int(options.NeighborHoodBin)) * bin_size
 
     # parameters regarding significance and sorting order of statistical significance values
-    QValCol=int(options.QValCol)
-    PValCol=int(options.PValCol)
-    CCCol=int(options.CCCol)
+    #QValCol=int(options.QValCol)
+    QValCol = 7
+    #PValCol=int(options.PValCol)
+    PValCol = 6
+    #CCCol=int(options.CCCol)
+    CCCol = 5
     SortOrder=int(options.SortOrder)
 
     #====================
@@ -158,16 +162,7 @@ def main():
     # if input interaction file has header information, 
     # then dump the header in the output file as well
     fp_outInt = gzip.open(OutFile, 'wt')
-
-    if (headerInp == 1):
-        fp_in = gzip.open(InpFile, 'rt')
-        l = fp_in.readline()
-        contents = l.rstrip().split()
-        # write the header corresponding to the chromosomes, contact count, P value and the Q value
-        fp_outInt.write(contents[0] + '\t' + contents[1] + '\t' + contents[2] + '\t' + contents[3] + '\t' + contents[4] + '\t' + contents[5] + '\t' + contents[CCCol-1] + '\t' + contents[PValCol - 1] + '\t' + contents[QValCol - 1] + '\t' + 'bin1_low' + '\t' + 'bin1_high' + '\t' + 'bin2_low' + '\t' + 'bin2_high' + '\t' + 'sumCC' + '\t' + 'StrongConn')
-        fp_in.close()
-    else:
-        fp_outInt.write('chr1' + '\t' + 'start1' + '\t' + 'end1' + '\t' + 'chr2' + '\t' + 'start2' + '\t' + 'end2' + '\t' + 'CC' + '\t' + 'p' + '\t' + 'fdr' + '\t' + 'bin1_low' + '\t' + 'bin1_high' + '\t' + 'bin2_low' + '\t' + 'bin2_high' + '\t' + 'sumCC' + '\t' + 'StrongConn')
+    fp_outInt.write('chr1' + '\t' + 'start1' + '\t' + 'end1' + '\t' + 'chr2' + '\t' + 'start2' + '\t' + 'end2' + '\t' + 'CC' + '\t' + 'p' + '\t' + 'fdr' + '\t' + 'bin1_low' + '\t' + 'bin1_high' + '\t' + 'bin2_low' + '\t' + 'bin2_high' + '\t' + 'sumCC' + '\t' + 'StrongConn')
 
     # list of chromosomes to be experimented
     TargetChrList = []
@@ -193,9 +188,7 @@ def main():
         # extract the interactions of current chromosome from the complete set of interactions
         tempchrdumpfile = OutDir + '/Temp_chr_Dump.bed'
         if (headerInp == 1):
-            awkcmd = "zcat " + str(InpFile) + " | awk \'{if (NR>1 && $1==\"" + str(curr_chr) + "\" && $4==\"" + str(curr_chr) + "\"){print $0}}\' -  > " + str(tempchrdumpfile)
-        else:
-            awkcmd = "zcat " + str(InpFile) + " | awk \'{if ($1==\"" + str(curr_chr) + "\" && $4==\"" + str(curr_chr) + "\"){print $0}}\' -  > " + str(tempchrdumpfile)
+            awkcmd = "zcat " + str(InpFile) + " | awk \'{if (NR>1 && $1==\"" + str(curr_chr) + "\" && $4==\"" + str(curr_chr) + "\" && $7 <=\"" + str(qvalue_threshold) + "\"){print $0}}\' -  > " + str(tempchrdumpfile)
         os.system(awkcmd)
 
         # check the number of dumped interactions
@@ -241,8 +234,10 @@ def main():
             for line in fp:
                 linecontents = (line.rstrip()).split()
                 # we set the bin number according to the end coordinate
-                bin1 = int(linecontents[2]) / bin_size
-                bin2 = int(linecontents[5]) / bin_size
+                bin1 = int(linecontents[1]+(bin_size/2)) / bin_size
+                #bin1 = int(linecontents[2]) / bin_size
+                bin2 = int(linecontents[3]+(bin_size/2)) / bin_size
+                #bin2 = int(linecontents[5]) / bin_size
                 if (bin1 < bin2):
                     curr_key = (bin1, bin2)
                 else:
