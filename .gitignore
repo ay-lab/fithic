@@ -2,4 +2,5 @@
 .eggs
 dist
 fithic.egg-info
-fithic/tests/output/
+fithic/tests/output/*
+*.out

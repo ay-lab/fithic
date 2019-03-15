@@ -84,23 +84,32 @@ class Interaction(object):
 def parse_args(args):
     parser = argparse.ArgumentParser(description="Check the help flag")
     parser.add_argument("-i", "--InpFile", help="Input gzipped interaction Fit-Hi-C output file.", required=True)
+    parser.add_argument("-H", "--headerInp", dest="headerInp", type=int, help="If 1, indicates that input interaction file has a header line (such as field names). Default 1.", default=1)
     parser.add_argument("-o", "--OutFile", help="Output merged gzipped interaction file.", required=True)
     parser.add_argument("-r", "--resolution", help="Resolution of Fit-Hi-C run.", required=True)
     parser.add_argument("-c", "--conn", help="Rule of connectivity (8 or 4). Default is 8.", required=False, default=8, type=int, dest="connectivity_rule")
+
+    # q-value threshold considered for interactions
+    # only loops having q-value below this threshold are considered
+    # sourya - do not use this threshold
+    # parser.add_argument("-q", "--qvalue_threshold", type=float, help="Q-value threshold to utilize for significant interactions. Default is 1e-5", default=(10**-5))
+
     parser.add_argument("-p", "--percent", dest="TopPctElem", type=int, help="Percentage of elements to be selected from each connected component. Default: 100, means all loops would be considered. If specified as 0, only the most significant loops from each component would be selected. For any number x between 0 and 100, top x%% of the loops in a component, considering both statistical significance and contact count, would considered for inclusion, subject to the bin and neighborhood contraints.", default=100)
+    
     parser.add_argument("-n", "--Neigh", dest="NeighborHoodBin", type=int, help="Positive integer (default: 2 with 5 Kb bin size) means that if a loop is included in the final set, loops involving within 2x2 neighborhood of both the bins would be discarded. Applicable only if --percent > 0. Difference in bin size other than 5000 may prompt user to change this value.", default=2)
+    
     parser.add_argument("-s","--order", dest="SortOrder", type=int, help="Binary variable indicating the sorting order of the given significance values. Default 0, means sorting is done by ascending order. If specified 1, sorting is done by descending (reverse) order.", default=0)
-    parser.add_argument("-x", "--qvaluecutoff", dest="limit", type=float, help="What q-value threshold to use when filterin the Fit-Hi-C results. Default is 0.01", default=0.01)
-    parser.add_argument("--cccol", dest="CCCol", type=int, help="Column number storing the contact count. Default: 7.", default=7)    
-    parser.add_argument("--headerInp", dest="headerInp", type=int, help="If 1, indicates that input interaction file has a header line (such as field names). Default 1.", default=1)
-    parser.add_argument("--qcol", dest="QValCol", type=int, help="Column number storing the q-value (or any measure of statistical significance). Default: 0, means the last column of the given interaction file. Any non-zero value would prompt the user to check the corresponding column.", default=0)
-    parser.add_argument("--pcol", dest="PValCol", type=int, help="Column number storing the p-value (or any measure of statistical significance). Default: 0, means the second last column of the given interaction file. Any non-zero value would prompt the user to check the corresponding column.", default=0)
+    
+    #parser.add_argument("--cccol", dest="CCCol", type=int, help="Column number storing the contact count. Default: 7.", default=7)
+
+    #parser.add_argument("--qcol", dest="QValCol", type=int, help="Column number storing the q-value (or any measure of statistical significance). Default: 0, means the last column of the given interaction file. Any non-zero value would prompt the user to check the corresponding column.", default=0)
+    #parser.add_argument("--pcol", dest="PValCol", type=int, help="Column number storing the p-value (or any measure of statistical significance). Default: 0, means the second last column of the given interaction file. Any non-zero value would prompt the user to check the corresponding column.", default=0)
+
     return parser.parse_args()
 
 #===============================================
 def main():
     options = parse_args(sys.argv[1:])
-    
 
     #===========================
     # process the input parameters
@@ -116,31 +125,50 @@ def main():
     else:
         sys.exit("Output file is not specified - quit !!")
 
+    # bin size of FitHiC loops - mandatory parameter 
     bin_size = int(options.resolution)
-    headerInp = int(options.headerInp)
+
+    # presence of header in input file
+    headerInp = int(options.headerInp)  #1
+
+    # q-value threshold for considering interactions for merging
+    # should not be used - sourya
+    # qvalue_threshold = float(options.qvalue_threshold)
+    
     connectivity_rule = int(options.connectivity_rule)
     TopPctElem = int(options.TopPctElem)
     NeighborHoodBinThr = (int(options.NeighborHoodBin)) * bin_size
 
     # parameters regarding significance and sorting order of statistical significance values
-    QValCol=int(options.QValCol)
-    PValCol=int(options.PValCol)
-    CCCol=int(options.CCCol)
+    #QValCol=int(options.QValCol)
+    QValCol = 7
+    #PValCol=int(options.PValCol)
+    PValCol = 6
+    #CCCol=int(options.CCCol)
+    CCCol = 5
     SortOrder=int(options.SortOrder)
 
-    #====================
-    # fix the columns containing P and Q-values
-    # by reading the first line of the input interaction file
-    fp_in = gzip.open(InpFile, 'rt')
-    l = fp_in.readline()
-    contents = l.rstrip().split()
-    if (QValCol == 0):
-        QValCol = len(contents)
-    
-    if (PValCol == 0):
-        PValCol = (len(contents) - 1)
-    
-    fp_in.close()
+    # according to the input file being normal file or gzipped file, set the following variable
+    if InpFile.endswith(".gz"):
+        gzip_inp = True
+    else:
+        gzip_inp = False
+
+    # #====================
+    # # fix the columns containing P and Q-values
+    # # by reading the first line of the input interaction file
+    # if InpFile.endswith(".gz"):
+    #     fp_in = gzip.open(InpFile, 'rt')
+    # else:
+    #     fp_in = open(InpFile, 'rt')
+
+    # l = fp_in.readline()
+    # contents = l.rstrip().split()
+    # if (QValCol == 0):
+    #     QValCol = len(contents)
+    # if (PValCol == 0):
+    #     PValCol = (len(contents) - 1)
+    # fp_in.close()
     #====================
 
     # print the parameters
@@ -153,34 +181,66 @@ def main():
         print('\n *** QValCol: ', QValCol)
         print('\n *** PValCol: ', PValCol)
         print('\n *** SortOrder: ', SortOrder)
-
-    # open the output file
-    # if input interaction file has header information, 
-    # then dump the header in the output file as well
-    fp_outInt = gzip.open(OutFile, 'wt')
-
-    if (headerInp == 1):
-        fp_in = gzip.open(InpFile, 'rt')
-        l = fp_in.readline()
-        contents = l.rstrip().split()
-        # write the header corresponding to the chromosomes, contact count, P value and the Q value
-        fp_outInt.write(contents[0] + '\t' + contents[1] + '\t' + contents[2] + '\t' + contents[3] + '\t' + contents[4] + '\t' + contents[5] + '\t' + contents[CCCol-1] + '\t' + contents[PValCol - 1] + '\t' + contents[QValCol - 1] + '\t' + 'bin1_low' + '\t' + 'bin1_high' + '\t' + 'bin2_low' + '\t' + 'bin2_high' + '\t' + 'sumCC' + '\t' + 'StrongConn')
-        fp_in.close()
-    else:
-        fp_outInt.write('chr1' + '\t' + 'start1' + '\t' + 'end1' + '\t' + 'chr2' + '\t' + 'start2' + '\t' + 'end2' + '\t' + 'CC' + '\t' + 'p' + '\t' + 'fdr' + '\t' + 'bin1_low' + '\t' + 'bin1_high' + '\t' + 'bin2_low' + '\t' + 'bin2_high' + '\t' + 'sumCC' + '\t' + 'StrongConn')
-
-    # list of chromosomes to be experimented
-    TargetChrList = []
-    for i in range(1, 23):
-        curr_chr = 'chr' + str(i)
-        TargetChrList.append(curr_chr)
-    TargetChrList.append('chrX')
-    TargetChrList.append('chrY')
-
+    
     # output directory
     OutDir = os.path.dirname(os.path.realpath(OutFile))
+    if not os.path.exists(OutDir):
+        os.makedirs(OutDir)
     if 1:
         print('OutDir: ', str(OutDir))
+
+    #====================
+    # generate a file containing the list of chromosomes in the current file
+    #====================
+    t = os.path.basename(os.path.realpath(OutFile))
+    temp_ChrName_File = OutDir + '/' + t[0:(t.rfind('.')-1)] + '_chrName.bed'
+    print('temp_ChrName_File: ', str(temp_ChrName_File))
+    if (gzip_inp == 1):
+        if (headerInp == 1):
+            currcmd = "zcat " + str(InpFile) + "| awk \'{if (NR>1) {print $1}}\' - | sort -k1,1 | uniq > " + str(temp_ChrName_File)
+        else:
+            currcmd = "zcat " + str(InpFile) + "| cut -f1 | sort -k1,1 | uniq > " + str(temp_ChrName_File)
+    else:
+        if (headerInp == 1):
+            currcmd = "cat " + str(InpFile) + "| awk \'{if (NR>1) {print $1}}\' - | sort -k1,1 | uniq > " + str(temp_ChrName_File)
+        else:
+            currcmd = "cat " + str(InpFile) + "| cut -f1 | sort -k1,1 | uniq > " + str(temp_ChrName_File)
+    os.system(currcmd)
+
+    #====================
+    # now read the file containing the list of chromosomes 
+    # and store it in a structure
+    #====================
+    # list of chromosomes to be experimented
+    TargetChrList = []
+    # for i in range(1, 23):
+    #     curr_chr = 'chr' + str(i)
+    #     TargetChrList.append(curr_chr)
+    # TargetChrList.append('chrX')
+    # TargetChrList.append('chrY')
+    
+    chrp_in = open(temp_ChrName_File, 'r')
+    while True:
+        l = chrp_in.readline()
+        if not l: 
+            break
+        contents = l.rstrip().split()
+        TargetChrList.append(contents[0])
+    chrp_in.close()
+
+    # print the input chromosome list
+    print('List of chromosomes considered: ', str(TargetChrList))
+
+    #======================
+    # open the output file
+    #======================
+    # dump the header in the output file as well
+    # comment - sourya
+    # add - sourya
+    #fp_outInt = open(OutFile, 'wt')
+    fp_outInt = gzip.open(OutFile, 'wt')
+    #fp_outInt.write('chr1' + '\t' + 'start1' + '\t' + 'end1' + '\t' + 'chr2' + '\t' + 'start2' + '\t' + 'end2' + '\t' + 'CC' + '\t' + 'p' + '\t' + 'fdr' + '\t' + 'bin1_low' + '\t' + 'bin1_high' + '\t' + 'bin2_low' + '\t' + 'bin2_high' + '\t' + 'sumCC' + '\t' + 'StrongConn')
+    fp_outInt.write('chr1' + '\t' + 'mid1' + '\t' + 'chr2' + '\t' + 'mid2'  + '\t' + 'CC' + '\t' + 'p' + '\t' + 'fdr' + '\t' + 'bin1_low' + '\t' + 'bin1_high' + '\t' + 'bin2_low' + '\t' + 'bin2_high' + '\t' + 'sumCC' + '\t' + 'StrongConn')
 
     #=========================================
     # loop to process individual chromosomes and corresponding data
@@ -191,16 +251,30 @@ def main():
             print('Processing the chromosome: ', str(curr_chr))
 
         # extract the interactions of current chromosome from the complete set of interactions
-        tempchrdumpfile = OutDir + '/Temp_chr_Dump.bed'
+        # file names are provided according to the chromosome name
+        tempchrdumpfile = OutDir + '/Temp_' + str(curr_chr) + '_Dump.bed'
         if (headerInp == 1):
-            awkcmd = "zcat " + str(InpFile) + " | awk \'{if (NR>1 && $1==\"" + str(curr_chr) + "\" && $4==\"" + str(curr_chr) + "\"){print $0}}\' -  > " + str(tempchrdumpfile)
+            if (gzip_inp == 1):
+                # comment - sourya
+                # uses q-value threshold
+                # awkcmd = "zcat " + str(InpFile) + " | awk \'{if (NR>1 && $1==\"" + str(curr_chr) + "\" && $3==\"" + str(curr_chr) + "\" && $7 <=" + str(qvalue_threshold) + "){print $0}}\' -  > " + str(tempchrdumpfile)
+                # modification - sourya
+                # just dump the significant loops for this chromosome
+                awkcmd = "zcat " + str(InpFile) + " | awk \'{if (NR>1 && $1==\"" + str(curr_chr) + "\" && $3==\"" + str(curr_chr) + "\"){print $0}}\' -  > " + str(tempchrdumpfile)
+            else:
+                awkcmd = "cat " + str(InpFile) + " | awk \'{if (NR>1 && $1==\"" + str(curr_chr) + "\" && $3==\"" + str(curr_chr) + "\"){print $0}}\' -  > " + str(tempchrdumpfile)
         else:
-            awkcmd = "zcat " + str(InpFile) + " | awk \'{if ($1==\"" + str(curr_chr) + "\" && $4==\"" + str(curr_chr) + "\"){print $0}}\' -  > " + str(tempchrdumpfile)
+            if (gzip_inp == 1):
+                awkcmd = "zcat " + str(InpFile) + " | awk \'{if ($1==\"" + str(curr_chr) + "\" && $3==\"" + str(curr_chr) + "\"){print $0}}\' -  > " + str(tempchrdumpfile)
+            else:
+                awkcmd = "cat " + str(InpFile) + " | awk \'{if ($1==\"" + str(curr_chr) + "\" && $3==\"" + str(curr_chr) + "\"){print $0}}\' -  > " + str(tempchrdumpfile)
+
+        print(awkcmd)
         os.system(awkcmd)
 
         # check the number of dumped interactions
         num_Int = sum(1 for line in open(tempchrdumpfile))
-        print(num_Int)
+        print('Number of interactions for the current chromosome: ', str(num_Int))
 
         if (num_Int == 0):
             if 0:
@@ -210,25 +284,9 @@ def main():
         if 1:
             print('Extracted interactions for the current chromosome')
 
-        # # extract also the max span of interactions (6th column maximum element)
-        # # so as to estimate the matrix size
-        # temp_log_file = OutDir + '/Temp.log'
-        # sys_cmd = "cat " + str(tempchrdumpfile) + " | cut -f6 | sort -nr  > " + str(temp_log_file)
-        # os.system(sys_cmd)
-
-        # # determine the maximum coordinate 
-        # with open(temp_log_file, 'r') as fp_in:
-        #     l = fp_in.readline()
-        #     max_coord = int((l.rstrip()).split()[0])
-
-        # sys.stdout.flush()  # test
-
-        # # number of bins (matrix dimension)
-        # nbins = (max_coord / bin_size)
-        # if 0:
-        #     print 'max_coord of the interactions: ', str(max_coord)
-        #     print 'nbins: ', str(nbins)
-
+        #==========================
+        # Graph modeling for the current chromosome
+        #==========================
         # create a graph which will store the interactions
         G = nx.Graph()
 
@@ -241,8 +299,10 @@ def main():
             for line in fp:
                 linecontents = (line.rstrip()).split()
                 # we set the bin number according to the end coordinate
-                bin1 = int(linecontents[2]) / bin_size
-                bin2 = int(linecontents[5]) / bin_size
+                bin1 = int(float(linecontents[1])+(bin_size/2)) / bin_size
+                #bin1 = int(linecontents[2]) / bin_size
+                bin2 = int(float(linecontents[3])+(bin_size/2)) / bin_size
+                #bin2 = int(linecontents[5]) / bin_size
                 if (bin1 < bin2):
                     curr_key = (bin1, bin2)
                 else:
@@ -396,7 +456,8 @@ def main():
                     print('**** Selected bin key: ', rep_bin_key, ' start bin mid: ', (rep_bin1_low + rep_bin1_high)/2,  ' end bin mid: ', (rep_bin2_low + rep_bin2_high) / 2, ' cc: ', cc, ' pval: ', pval, ' qval: ', qval)
 
                 # write the interaction in the specified output file
-                fp_outInt.write('\n' + str(curr_chr) + '\t' + str(rep_bin1_low) + '\t' + str(rep_bin1_high) + '\t' + str(curr_chr) + '\t' + str(rep_bin2_low) + '\t' + str(rep_bin2_high) + '\t' + str(cc) + '\t' + str(pval) + '\t' + str(qval) + '\t' + str(span_low_bin1) + '\t' + str(span_high_bin1) + '\t' + str(span_low_bin2) + '\t' + str(span_high_bin2) + '\t' + str(sum_cc) + '\t' + str(Percent_Significant_BinPair))
+                #fp_outInt.write('\n' + str(curr_chr) + '\t' + str(rep_bin1_low) + '\t' + str(rep_bin1_high) + '\t' + str(curr_chr) + '\t' + str(rep_bin2_low) + '\t' + str(rep_bin2_high) + '\t' + str(cc) + '\t' + str(pval) + '\t' + str(qval) + '\t' + str(span_low_bin1) + '\t' + str(span_high_bin1) + '\t' + str(span_low_bin2) + '\t' + str(span_high_bin2) + '\t' + str(sum_cc) + '\t' + str(Percent_Significant_BinPair))
+                fp_outInt.write('\n' + str(curr_chr) + '\t' + str((rep_bin1_low + rep_bin1_high)/2) + '\t' + str(curr_chr) + '\t' + str((rep_bin2_low + rep_bin2_high)/2) + '\t' + str(cc) + '\t' + str(pval) + '\t' + str(qval) + '\t' + str(span_low_bin1) + '\t' + str(span_high_bin1) + '\t' + str(span_low_bin2) + '\t' + str(span_high_bin2) + '\t' + str(sum_cc) + '\t' + str(Percent_Significant_BinPair))
             
             #==================================================
             # approach 2: 
@@ -533,7 +594,8 @@ def main():
                         print('**** Selected bin key: ', rep_bin_key, ' start bin mid: ', (rep_bin1_low + rep_bin1_high)/2,  ' end bin mid: ', (rep_bin2_low + rep_bin2_high) / 2, ' cc: ', cc, ' pval: ', pval, ' qval: ', qval)
                     
                     # write the interaction in the specified output file
-                    fp_outInt.write('\n' + str(curr_chr) + '\t' + str(rep_bin1_low) + '\t' + str(rep_bin1_high) + '\t' + str(curr_chr) + '\t' + str(rep_bin2_low) + '\t' + str(rep_bin2_high) + '\t' + str(cc) + '\t' + str(pval) + '\t' + str(qval) + '\t' + str(span_low_bin1) + '\t' + str(span_high_bin1) + '\t' + str(span_low_bin2) + '\t' + str(span_high_bin2) + '\t' + str(sum_cc) + '\t' + str(Percent_Significant_BinPair))
+                    # fp_outInt.write('\n' + str(curr_chr) + '\t' + str(rep_bin1_low) + '\t' + str(rep_bin1_high) + '\t' + str(curr_chr) + '\t' + str(rep_bin2_low) + '\t' + str(rep_bin2_high) + '\t' + str(cc) + '\t' + str(pval) + '\t' + str(qval) + '\t' + str(span_low_bin1) + '\t' + str(span_high_bin1) + '\t' + str(span_low_bin2) + '\t' + str(span_high_bin2) + '\t' + str(sum_cc) + '\t' + str(Percent_Significant_BinPair))
+                    fp_outInt.write('\n' + str(curr_chr) + '\t' + str((rep_bin1_low + rep_bin1_high)/2) + '\t' + str(curr_chr) + '\t' + str((rep_bin2_low + rep_bin2_high)/2) + '\t' + str(cc) + '\t' + str(pval) + '\t' + str(qval) + '\t' + str(span_low_bin1) + '\t' + str(span_high_bin1) + '\t' + str(span_low_bin2) + '\t' + str(span_high_bin2) + '\t' + str(sum_cc) + '\t' + str(Percent_Significant_BinPair))
 
             #==================================================
             # approach 3: 
@@ -640,12 +702,17 @@ def main():
                     if 1:
                         print('Selected bin key: ', rep_bin_key, ' start bin mid: ', (rep_bin1_low + rep_bin1_high)/2,  ' end bin mid: ', (rep_bin2_low + rep_bin2_high) / 2, ' cc: ', cc, ' pval: ', pval, ' qval: ', qval)
 
-                    print("it's here and working")
                     # write the interaction in the specified output file
-                    fp_outInt.write('\n' + str(curr_chr) + '\t' + str(rep_bin1_low) + '\t' + str(rep_bin1_high) + '\t' + str(curr_chr) + '\t' + str(rep_bin2_low) + '\t' + str(rep_bin2_high) + '\t' + str(cc) + '\t' + str(pval) + '\t' + str(qval) + '\t' + str(span_low_bin1) + '\t' + str(span_high_bin1) + '\t' + str(span_low_bin2) + '\t' + str(span_high_bin2) + '\t' + str(sum_cc) + '\t' + str(Percent_Significant_BinPair))
+                    # fp_outInt.write('\n' + str(curr_chr) + '\t' + str(rep_bin1_low) + '\t' + str(rep_bin1_high) + '\t' + str(curr_chr) + '\t' + str(rep_bin2_low) + '\t' + str(rep_bin2_high) + '\t' + str(cc) + '\t' + str(pval) + '\t' + str(qval) + '\t' + str(span_low_bin1) + '\t' + str(span_high_bin1) + '\t' + str(span_low_bin2) + '\t' + str(span_high_bin2) + '\t' + str(sum_cc) + '\t' + str(Percent_Significant_BinPair))
+                    fp_outInt.write('\n' + str(curr_chr) + '\t' + str((rep_bin1_low + rep_bin1_high)/2) + '\t' + str(curr_chr) + '\t' + str((rep_bin2_low + rep_bin2_high)/2) + '\t' + str(cc) + '\t' + str(pval) + '\t' + str(qval) + '\t' + str(span_low_bin1) + '\t' + str(span_high_bin1) + '\t' + str(span_low_bin2) + '\t' + str(span_high_bin2) + '\t' + str(sum_cc) + '\t' + str(Percent_Significant_BinPair))
 
 
             #==================================================
+
+        # remove the temporary chromosome specific interaction dump file
+        # in the current iteration
+        sys_cmd = "rm " + str(tempchrdumpfile)
+        os.system(sys_cmd)
 
     # after processing all the chromosomes, now close the output interaction file
     fp_outInt.close()
@@ -654,12 +721,8 @@ def main():
     # sys_cmd = "rm " + str(temp_log_file)
     # os.system(sys_cmd)
 
-    # remove the temporary chromosome specific interaction dump file
-    sys_cmd = "rm " + str(tempchrdumpfile)
-    os.system(sys_cmd)
-
     if 1:
-        print('End of merging nearby interactions !!! ')
+        print('End of merging filtering loops !!! ')
 
 #===============================================
 if __name__ == "__main__":

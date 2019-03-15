@@ -41,6 +41,17 @@ fithic_2.0.6.tgz - 01/15/2019
 -------------------------------
 Bias File Big Fix
 __________________________________________________________________
+
 * Fixed bug with reading in of bias values
 * Added new util (createFitHiCContacts-hic.sh)
 * Updated README with this util
+__________________________________________________________________
+
+fithic_2.0.7.tgz - 03/14/2019
+-------------------------------
+Small touchups + new util!
+__________________________________________________________________
+
+* Fixed test dataset to address bias file bug fix
+* Added new utils (merge-filter.sh and merge-filter-parallelized.sh)
+* Updated README with these utils

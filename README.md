@@ -318,7 +318,10 @@ These utilities are provided as part of Fit-Hi-C (`/fithic/utils/`) to aid in ce
 - createFitHiCFragments-fixedsize.py (Pre-processing. Generates --fragments input)
 - createFitHiCFragments-nonfixedsize.sh (Pre-processing. Generates --fragments input)
 - validPairs2FitHiC-fixedSize.sh (Pre-processing. Generates --interactions input)
+- createFitHiCContacts-hic.sh (Pre-processing. Generates --interactions input from .hic output)
 - createFitHiCHTMLout.sh (Post-processing. Generates HTML page describing Fit-Hi-C run)
+- merge-filter.sh (Post-processing. Filters Fit-Hi-C interactions and merges nearby ones using FANCY GRAAAAAAAAAAAPH magic)
+- merge-filter-parallelized.sh (Post-processing. Filters Fit-Hi-C interactions and merges nearby ones using FANCY GRAAAAAAAAAAAPH magic + parallelizes per chr)
 
 ### HiCKRy
 Regardless of the implementation, we strongly recommend the use of a normalization method in order to have meaningful results for further analysis. The only way for Fit-Hi-C to utilize data from Hi-C normalization is through the bias files. As long as the bias value are scaled to have an average of 1 and high values represent loci with higher overall raw counts, Fit-Hi-C will be able to use them in significance assignment. 
@@ -404,6 +407,32 @@ bash createFitHiCContacts-hic.sh [Juicer's dump command] [chr1] [chr2] [Output f
 [chr1]                     Chromosome 1 of the argument used in Juicer's dump command
 [chr2]                     Chromosome 2 of the argument used in Juicer's dump command
 [Output file name]          Name of output file
+```
+### merge-filter.sh
+
+A bash script to merge nearby significant interactions and filter Fit-Hi-C output
+
+```
+bash merge-filter.sh [inputFile] [resolution] [outputDirectory] [fdr]
+
+[inputFile]                Input file of Fit-Hi-C interactions
+[resolution]               Resolution used
+[outputFile]               Output file to dump output to
+[fdr]                      False Discovery rate to use when subsetting interactions
+```
+### merge-filter-parallelized.sh
+
+A bash script to parallelize merge nearby significant interactions and filter Fit-Hi-C output.
+*Note* - you will have to modify the actual script contents to assume your cluster config/
+organism.
+
+```
+bash merge-filter-parallelized.sh [inputFile] [resolution] [outputDirectory] [fdr]
+
+[inputFile]                Input file of Fit-Hi-C interactions
+[resolution]               Resolution used
+[outputDirectory]          Directory to dump output to
+[fdr]                      False Discovery rate to use when subsetting interactions
 ```
 
 ## Citing Fit-Hi-C

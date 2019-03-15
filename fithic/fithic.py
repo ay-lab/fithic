@@ -871,17 +871,34 @@ def fit_Spline(mainDic,x,y,yerr,infilename,outfilename,biasDic,outliersline,outl
         bias1=1.0; bias2=1.0;  # assumes there is no bias to begin with
         # if the biasDic is not null sets the real bias values
         if biasDic:
-            if (ch1 not in biasDic) or (ch2 not in biasDic):
-                print("Error. Bias file does not contain chromosome %s or %s. \
-                Please ensure you're using correct file." % (ch1, ch2))
-                sys.exit(2)
-            if (mid1 not in biasDic[ch1]) or (mid2 not in biasDic[ch2]):
-                print("Error. Bias file does not contain midpoint %s or %s. \
-                Please ensure you're using the correct file and/or resolution \
-                argument" % (mid1, mid2))
-                sys.exit(2)
-            bias1=biasDic[ch1][mid1]
-            bias2=biasDic[ch2][mid2]
+            if ch1 not in biasDic:
+                print("Warning. Bias file does not contain chromosome %s. \
+                Please ensure you're using correct file. Fit-Hi-C will continue with\
+                bias = -1 for this locus" % ch1)
+                bias1 = -1
+            else:
+                if mid1 not in biasDic[ch1]:
+                    print("Error. Bias file does not contain midpoint %s within \
+                    %s. Please ensure you're using the correct file and/or resolution \
+                    argument. Fit-Hi-C will continue with bias = -1 for this locus" \
+                    % (mid1, ch1))
+                    bias1 = -1
+                else: 
+                    bias1=biasDic[ch1][mid1]
+            if ch2 not in biasDic:
+                print("Warning. Bias file does not contain chromosome %s. \
+                Please ensure you're using correct file. Fit-Hi-C will continue with\
+                bias = -1 for this locus" % ch2)
+                bias2 = -1
+            else:
+                if mid2 not in biasDic[ch2]:
+                    print("Error. Bias file does not contain midpoint %s within \
+                    %s. Please ensure you're using the correct file and/or resolution \
+                    argument. Fit-Hi-C will continue with bias = -1 for this locus" \
+                    % (mid2, ch2))
+                    bias2 = -1
+                else:
+                    bias2=biasDic[ch2][mid2]
         biasl.append(bias1)
         biasr.append(bias2)
         if (bias1<0 or bias2<0) and interactionType !='inter':
