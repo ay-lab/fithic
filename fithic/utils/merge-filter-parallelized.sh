@@ -7,15 +7,16 @@
 #        [resolution]               Resolution used
 #        [outputDirectory]          Output directory to dump output to
 #        [fdr]                      False Discovery rate to use when subsetting interactions
+#        [utilityfolder]            Directory of the Fit-Hi-C utility folder
 
 inputFile=$1
 resolution=$2
 outdir=$3
 fdr=$4
+UTILITYFOLDER=$5
 
 #JOBHEADER_FILE="~/bin/jobHeader"
-UTILITYFOLDER="~/fithic/fithic/utils"
-script="$UTILITYFOLDER/CombineNearbyInteraction.py"
+script=""$UTILITYFOLDER"CombineNearbyInteraction.py"
 mkdir -p $outdir
 zcat $inputFile | cut -f1 | sort | uniq > $outdir/chromosomes.used
 while read chrom; do

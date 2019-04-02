@@ -319,6 +319,7 @@ These utilities are provided as part of Fit-Hi-C (`/fithic/utils/`) to aid in ce
 - createFitHiCFragments-nonfixedsize.sh (Pre-processing. Generates --fragments input)
 - validPairs2FitHiC-fixedSize.sh (Pre-processing. Generates --interactions input)
 - createFitHiCContacts-hic.sh (Pre-processing. Generates --interactions input from .hic output)
+- visualize-UCSC.sh (Post-processing. Visualizes Fit-Hi-C interactions on the UCSC Genome Browser)
 - createFitHiCHTMLout.sh (Post-processing. Generates HTML page describing Fit-Hi-C run)
 - merge-filter.sh (Post-processing. Filters Fit-Hi-C interactions and merges nearby ones using FANCY GRAAAAAAAAAAAPH magic)
 - merge-filter-parallelized.sh (Post-processing. Filters Fit-Hi-C interactions and merges nearby ones using FANCY GRAAAAAAAAAAAPH magic + parallelizes per chr)
@@ -384,6 +385,19 @@ bash validPairs2FitHiC-fixedSize.sh [resolution] [libraryName] [validPairsFile]
 [validPairsFile]     A textfile containing the validPairs. Required.
 ```
 
+### visualize-UCSC.sh
+
+A bash script to convert Fit-Hi-C output into visualization input for UCSC's Genome Browser in 'interact' format.
+
+```
+DESCRIPTION:
+bash visualize-UCSC.sh [inputFile] [outputFile] [QvalThresh]
+        
+         [inputFile]                Input Fit-Hi-C file to visualize 
+         [outputFile]               Output file for UCSC to visualize 
+         [QvalThresh]               Q-value threshold to filter Fit-Hi-C interactions at 
+```
+
 ### createFitHiCHTMLout
 
 A bash script to generate an HTML report of the Fit-Hi-C run. Note, works best if Fit-Hi-C was run with `--visual` option.
@@ -419,6 +433,7 @@ bash merge-filter.sh [inputFile] [resolution] [outputDirectory] [fdr]
 [resolution]               Resolution used
 [outputFile]               Output file to dump output to
 [fdr]                      False Discovery rate to use when subsetting interactions
+[utilities]                Full path to utilities folder (folder where CombineNearbyInteraction.py is)
 ```
 ### merge-filter-parallelized.sh
 
@@ -433,6 +448,7 @@ bash merge-filter-parallelized.sh [inputFile] [resolution] [outputDirectory] [fd
 [resolution]               Resolution used
 [outputDirectory]          Directory to dump output to
 [fdr]                      False Discovery rate to use when subsetting interactions
+[utilities]                Full path to utilities folder (folder where CombineNearbyInteraction.py is)
 ```
 
 ## Citing Fit-Hi-C
