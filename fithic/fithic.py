@@ -104,12 +104,12 @@ def parse_args(args):
                       help="OPTIONAL: use this flag to determine which chromosomal \
                       regions to study (intraOnly, interOnly, All) \
                       DEFAULT is intraOnly", required=False)
-    
+
     parser.add_argument("-tL", "--biasLowerBound", dest="biasLowerBound", type=float, \
                       help="OPTIONAL: this flag is used to determine the lower bound\
                       of bias values to discard. DEFAULT is 0.5"\
                       , required=False)
-    
+
     parser.add_argument("-tU", "--biasUpperBound", dest="biasUpperBound", type=float, \
                       help="OPTIONAL: this flag is used to determine the upper bound\
                       of bias values to discard. DEFAULT is 2"\
@@ -172,7 +172,7 @@ def main():
         sys.exit(2)
 
     ##PARSE OPTIONAL ARGUMENTS##
-    
+
     if args.biasfile is not None:
         if os.path.isfile(args.biasfile):
             print("Reading bias file from: %s" % args.biasfile)
@@ -181,8 +181,8 @@ def main():
             sys.exit(2)
     else:
         print("No bias file")
-    biasFile = args.biasfile 
-    
+    biasFile = args.biasfile
+
 
     noOfPasses = 1
     if args.noOfPasses:
@@ -279,7 +279,7 @@ def main():
 
     global baselineIntraChrProb
     baselineIntraChrProb=0  # 1.0/possibleIntraAllCount
-    global interChrProb 
+    global interChrProb
     interChrProb=0 # 1.0/possibleInterAllCount
 
     minObservedGenomicDist=float("inf")
@@ -475,7 +475,7 @@ def makeBinsFromInteractions(mainDic,noOfBins, observedIntraInRangeSum, outliers
         for dists in bins[binIdx]:
             binStats[binIdx][2]+=mainDic[dists][1]
             #binStats[binIdx][3]+=(dists/distScaling)
-    
+
     if outliersdist != None:
         binTracker = 0
         for i in range(len(outliersdist)):
@@ -497,13 +497,13 @@ def makeBinsFromInteractions(mainDic,noOfBins, observedIntraInRangeSum, outliers
                     maxOfBin = currBin[0][1]
             currBin[7]-=1
             currBin[1]-=1
-    
+
     with open(logfile, 'a') as log:
         log.write("Equal occupancy bins generated\n")
         log.write("\n")
     return binStats
 
-def generate_FragPairs(binStats, fragsfile, resolution): 
+def generate_FragPairs(binStats, fragsfile, resolution):
     if resolution:
         with open(logfile, 'a') as log:
             log.write("Looping through all possible fragment pairs in-range\n")
@@ -534,15 +534,23 @@ def generate_FragPairs(binStats, fragsfile, resolution):
             if currHit>=mappThres:
                 allFragsDic[currChr].append(currMid)
 
+    needTOdelete = []
+    for ch in allFragsDic:
+        length = len(allFragsDic[ch])
+        if length < 1:
+            needTOdelete.append(ch)
+    for i in needTOdelete:
+        del allFragsDic[i]
+
     if resolution:
         noOfFrags=0
         maxFrags={}
-        
+
         for ch in allFragsDic:
             maxFrags[ch]=max([int(i)-resolution/2 for i in allFragsDic[ch]])
             noOfFrags+=len(allFragsDic[ch])
             maxPossibleGenomicDist=max(maxPossibleGenomicDist,maxFrags[ch])
-        
+
         for ch in sorted(allFragsDic.keys()):
             maxFrag=maxFrags[ch]
             n=len(allFragsDic[ch])
@@ -606,7 +614,7 @@ def generate_FragPairs(binStats, fragsfile, resolution):
                 for y in range(x+1,templen):
                     intxnDistance = abs(float(fragsPerChr[x])-float(fragsPerChr[y]))
                     if myUtils.in_range_check(intxnDistance, distLowThres,distUpThres):
-                        possibleIntraInRangeCountPerChr += 1 
+                        possibleIntraInRangeCountPerChr += 1
                     else:
                         continue
                     maxPossibleGenomicDist = max(maxPossibleGenomicDist, intxnDistance)
@@ -776,10 +784,10 @@ def fit_Spline(mainDic,x,y,yerr,infilename,outfilename,biasDic,outliersline,outl
     with open(logfile, 'a') as log:
         log.write("\nFitting a univariate spline to the probability means\n"),
         log.write("------------------------------------------------------------------------------------\n"),
-   
+
     splineX = None
     newSplineY = None
-    residual = None 
+    residual = None
     FDRx = None
     FDRy = None
 
@@ -793,7 +801,7 @@ def fit_Spline(mainDic,x,y,yerr,infilename,outfilename,biasDic,outliersline,outl
                 print("Avg. distance of bin(i-1)... %s" % x[i-1])
                 print("Avg. distance of bin(i)... %s" % x[i])
                 sys.exit(2)
-        
+
         # maximum residual allowed for spline is set to min(y)^2
         splineError=min(y)*min(y)
 
@@ -827,8 +835,8 @@ def fit_Spline(mainDic,x,y,yerr,infilename,outfilename,biasDic,outliersline,outl
             fig = plt.figure()
             ax = fig.add_subplot(2,1,1)
             plt.plot(myUtils.scale_a_list(splineX,toKb), myUtils.scale_a_list(newSplineY,toProb),'g-',label="spline-"+str(passNo),linewidth=2)
-            plt.errorbar(myUtils.scale_a_list(x,toKb),myUtils.scale_a_list(y,toProb),myUtils.scale_a_list(yerr,toProb),fmt='r.',label="Mean with std. error",linewidth=2) 
-        
+            plt.errorbar(myUtils.scale_a_list(x,toKb),myUtils.scale_a_list(y,toProb),myUtils.scale_a_list(yerr,toProb),fmt='r.',label="Mean with std. error",linewidth=2)
+
             #plt.ylabel('Contact probability (x10$^{-5}$)',fontsize='large')
             #plt.xlabel('Genomic distance (kb)',fontsize='large')
             plt.ylabel('Contact probability (x10$^{-5}$)')
@@ -848,7 +856,7 @@ def fit_Spline(mainDic,x,y,yerr,infilename,outfilename,biasDic,outliersline,outl
             plt.xlabel('Genomic distance (log-scale)')
 
             plt.savefig(outfilename+'.png')
-            
+
 
     # NOW write the calculated pvalues and corrected pvalues in a file
     infile = gzip.open(infilename, 'rt')
@@ -883,7 +891,7 @@ def fit_Spline(mainDic,x,y,yerr,infilename,outfilename,biasDic,outliersline,outl
                     argument. Fit-Hi-C will continue with bias = -1 for this locus" \
                     % (mid1, ch1))
                     bias1 = -1
-                else: 
+                else:
                     bias1=biasDic[ch1][mid1]
             if ch2 not in biasDic:
                 print("Warning. Bias file does not contain chromosome %s. \
@@ -909,7 +917,7 @@ def fit_Spline(mainDic,x,y,yerr,infilename,outfilename,biasDic,outliersline,outl
             distToLookUp=max(interxn.getDistance(),min(x))
             distToLookUp=min(distToLookUp,max(x))
             i=min(bisect.bisect_left(splineX, distToLookUp),len(splineX)-1)
-            prior_p=newSplineY[i]*(bias1*bias2) 
+            prior_p=newSplineY[i]*(bias1*bias2)
             p_val=scsp.bdtrc(interxn.getCount()-1,observedIntraInRangeSum,prior_p)
             intraInRangeCount +=1
         elif interactionType =='intraShort' and not interOnly:
@@ -965,14 +973,14 @@ def fit_Spline(mainDic,x,y,yerr,infilename,outfilename,biasDic,outliersline,outl
         q_val=q_vals[count]
         bias1=biasl[count]
         bias2=biasr[count]
-        
+
         if (allReg or interOnly) and chr1!=chr2:
             outfile.write("%s\t%d\t%s\t%d\t%d\t%e\t%e\t%e\t%e\n" % (str(chr1), midPoint1, str(chr2), midPoint2, interactionCount, p_val, q_val, bias1, bias2))
         if (allReg or not interOnly) and chr1==chr2:
             interactionDistance = abs(midPoint1-midPoint2)
             if myUtils.in_range_check(interactionDistance,distLowThres, distUpThres):
                 outfile.write("%s\t%d\t%s\t%d\t%d\t%e\t%e\t%e\t%e\n" % (str(chr1), midPoint1, str(chr2), midPoint2, interactionCount, p_val, q_val, bias1, bias2))
-        
+
         if p_val<outlierThres:
             outliersline.add(count)
             outliersdist.add(abs(midPoint1-midPoint2))
@@ -985,7 +993,7 @@ def fit_Spline(mainDic,x,y,yerr,infilename,outfilename,biasDic,outliersline,outl
     maxFDR=0.05
     increment=0.001
     FDRx,FDRy=plot_qvalues(q_vals,minFDR,maxFDR,increment,outfilename+".qplot")
-        
+
     with open(logfile, 'a') as log:
         log.write("Spline successfully fit\n"),
         log.write("\n"),
@@ -998,15 +1006,15 @@ def plot_qvalues(q_values,minFDR,maxFDR,increment,outfilename):
     significantTicks=[0 for i in range(len(qvalTicks))]
     qvalBins=[-1 for i in range(len(q_values))]
     for i, q in enumerate(q_values):
-        if math.isnan(q): q=1 #make sure NaNs are set to 1 
+        if math.isnan(q): q=1 #make sure NaNs are set to 1
         qvalBins[i]=int(math.floor(q/increment))
-    
+
     for i in range(len(qvalBins)):
         if qvalBins[i]>=len(qvalTicks):
             continue
         significantTicks[qvalBins[i]]+=1
-    
-    # make it cumulative 
+
+    # make it cumulative
     for i in range(1,len(significantTicks)):
         significantTicks[i]=significantTicks[i]+significantTicks[i-1]
     # shift them by 1
