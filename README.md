@@ -1,9 +1,20 @@
+FitHiC and FitHiC2
+--------------------
+
 [![install with bioconda](https://img.shields.io/badge/install%20with-bioconda-brightgreen.svg?style=flat-square)](http://bioconda.github.io/recipes/fithic/README.html)
 [![Anaconda-Server Badge](https://anaconda.org/bioconda/fithic/badges/version.svg)](https://anaconda.org/bioconda/fithic)
 [![Anaconda-Server Badge](https://anaconda.org/bioconda/fithic/badges/downloads.svg)](https://anaconda.org/bioconda/fithic)
 [![Anaconda-Server Badge](https://anaconda.org/bioconda/fithic/badges/license.svg)](https://anaconda.org/bioconda/fithic)
 
-Fit-Hi-C was initially developed by Ferhat Ay, Timothy Bailey, and William Noble January 19th, 2014. It is currently maintained and updated by Ferhat Ay (ferhatay@lji<span></span>&#46;org) and Arya Kaul (akaul@lji<span></span>&#46;org) at the [Ay Lab](http://www.lji.org/faculty-research/labs/ay/#overview) in the La Jolla Institute for Allergy and Immunology.
+Fit-Hi-C (or FitHiC) was initially developed by Ferhat Ay, Timothy Bailey, and William Noble January 19th, 2014. It is currently maintained and updated by Ferhat Ay (ferhatay@lji<span></span>&#46;org) and Arya Kaul (akaul@lji<span></span>&#46;org) at the [Ay Lab](http://www.lji.org/faculty-research/labs/ay/#overview) in the La Jolla Institute for Allergy and Immunology.
+
+The current version is named as *FitHiC2* (or *FitHiC 2.0*) due to the addition of many new features compared to FitHiC, like:
+
+   1) finding inter-chromosomal significant interactions, 
+
+   2) applying a merging filter algorithm to filter out putative bystander interactions and keep only the direct CIS chromosomal interactions,
+
+   3) Reporting the expected contact count between interacting pairs of bins, along with the raw (observed) contact count, to assess the enrichment of observed from the expected contact count.
 
 Please use the [Google Group](https://groups.google.com/forum/#!forum/fithic) for discussions/bug reports/analysis questions. Sending an email to fithic@googlegroups<span></span>&#46;com will also post directly to the Group.
 
@@ -133,14 +144,19 @@ The -f argument is used to pass in a full path to what we deem a 'fragments file
    field is the total number of observed mid-range reads (contact
    counts) that involve the specified fragment.  The fields can be
    separated by space or tab. All possible fragments need to be listed
-   in this file.  One example file would look like below (excluding
-   the header which is not a part of input):
+   in this file.  
+
+   One example file would look like below (*excluding
+   the header which is not a part of input*):
 
 | chr |  extraField | fragmentMid|marginalizedContactCount|mappable? (0/1)|
 |---|---|---|---|---|
 | 1 | 0 | 15000|234|1
 |1|0|25000|0|0
 |...|...|...|...|...
+
+*Note: the file should be gzipped before providing as an input parameter*
+
 
 ##### -i, --interactions
 The interactions file contains a list of mid-range contacts between the
@@ -151,8 +167,10 @@ The interactions file contains a list of mid-range contacts between the
    second and the fifth field will correspond to number of contacts
    between these two fragments.  The fields can be separated by space
    or tab. Only the fragment pairs with non-zero contact counts are
-   listed in this file.  One example file would look like below
-   (excluding the header which is not a part of input):
+   listed in this file.  
+
+   One example file would look like below  (*excluding 
+   the header which is not a part of input*):
  
 | chr1 |  fragmentMid1 | chr2|fragmentMid2|contactCount|
 |---|---|---|---|---|
@@ -160,6 +178,8 @@ The interactions file contains a list of mid-range contacts between the
 |1|15000|1|55000|12
 |...|...|...|...|...
 
+
+*Note: the file should be gzipped before providing as an input parameter*
 
 ##### -o, --outdir
 A full path to an output directory of your choice. If it is not already created, it creates if for you.
@@ -184,6 +204,8 @@ Numerical value indicating resolution of fixed-size dataset being analyzed. If n
 *Default* - None
 
 *Description* - Bias files help Fit-Hi-C accurately generate statistical significance estimates. If you have it, use it! 
+
+*Note: the file should be gzipped before providing as an input parameter*
 
 ##### -p, --passes
 *Accepts* - Number of spline passes. 
@@ -241,7 +263,15 @@ Numerical value indicating resolution of fixed-size dataset being analyzed. If n
 
 *Default* - intraOnly
 
-*Description* - interOnly is used if you would only like to analyze interchromosomal interactions. intraOnly is used if youd would only like to analyze intrachromosomal interactions. All is used if you would like to analyze inter and intrachromosomal interactions. While you may now be thinking, "Why would I ever not choose 'All'? More analysis is better!" It is not this simple. Since you are adding significantly more interactions when you analyze interchromosomal and intrachromosomal interactions in tandem, qvalues will be depressed across the board. In addition, few to no datasets are at a high enough resolution to find significanct interchromosomal interactions. 
+*Description* - 
+
+   *interOnly* is used if you would only like to analyze interchromosomal interactions. 
+
+   *intraOnly* is used if youd would only like to analyze intrachromosomal interactions. 
+
+   *All* is used if you would like to analyze inter and intrachromosomal interactions. 
+
+   While you may now be thinking, "Why would I ever not choose 'All'? More analysis is better!" It is not this simple. Since you are adding significantly more interactions when you analyze interchromosomal and intrachromosomal interactions in tandem, qvalues will be depressed across the board. In addition, few to no datasets are at a high enough resolution to find significanct interchromosomal interactions. 
 
 
 ##### -bL, --biasLowerBound
@@ -300,14 +330,31 @@ five fields. An example of which is shown below:
 
 The second file will have the exact same lines as in the input file
 that contains the list of mid-range contacts. This input file had 5
-fields as described above. The output from each step will append two
-more columns to these fields, namely p-value and q-value.
+fields as described above. The output from each step will append the 
+following columns to these fields:
 
-| chr1 |  fragmentMid1 | chr2|fragmentMid2|contactCount|p-value|q-value|
-|---|---|---|---|---|---|---|
-| 1 | 15000 | 1|35000|23|1.000000e+00   |1.000000e+00
-|1|15000|1|55000|12|2.544592e-02|1.202603e-01
-|...|...|...|...|...|..|..|
+   1) p-value: p-value of the corresponding interaction, as computed by 
+   the binomial distribution model employed in FitHiC.
+
+   2) q-value: q-value or FDR obtained by applying Benjamini-Hochberg 
+   correction to the p-values.
+
+   3) bias1: Bias value of the first interacting fragment.
+
+   4) bias2: Bias value of the second interacting fragment.
+
+   5) ExpCC: Expected contact count of the current interaction, 
+   computed using the raw contact count, spline fit probability of 
+   the raw contact count (with respect to the loop distance), 
+   and the given bias values. Enrichment of the raw (observed) contact 
+   count with respect to the expected contact count is reflected 
+   in the q-value.
+
+| chr1 |  fragmentMid1 | chr2|fragmentMid2|contactCount|p-value|q-value|bias1|bias2|ExpCC|
+|---|---|---|---|---|---|---|---|---|---|
+| 1 | 15000 | 1 | 35000 | 23 | 1.000000e+00 | 1.000000e+00 | 1 | 1.2 | 22 | 
+| 1 | 15000 | 1 | 55000 | 12 | 2.544592e-02 | 1.202603e-01 | 1.1 | 0.9 | 4 |
+|...|...|...|...|...|..|..|..|..|..|
 
 ## Utilities
 
