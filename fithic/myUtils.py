@@ -83,7 +83,10 @@ def chr_name_conversion(chrIn,org):
 ###   interested. Should only be used for intra-chromosomal interactions.
 ##############################################################################
 def in_range_check(interactionDistance,distLowThres,distUpThres):
-    if (distLowThres==-1 or (distLowThres>-1 and interactionDistance >distLowThres)) and\
+    # modification - sourya
+    # previously interactionDistance > distLowThres
+    # now interactionDistance >= distLowThres
+    if (distLowThres==-1 or (distLowThres>-1 and interactionDistance >= distLowThres)) and\
         (distUpThres==-1 or (distUpThres>-1 and interactionDistance <= distUpThres)):
         return True
     return False
@@ -132,7 +135,10 @@ class Interaction:
     def getType(self,distLowThres,distUpThres):
         if self.type == 'inter':
             return self.type
-        if (distLowThres==-1 or (distLowThres>-1 and self.distance >distLowThres)) and\
+        # modification - sourya
+        # previously self.distance > distLowThres
+        # now self.distance >= distLowThres
+        if (distLowThres==-1 or (distLowThres>-1 and self.distance >= distLowThres)) and\
             (distUpThres==-1 or (distUpThres>-1 and self.distance <= distUpThres)):
             self.type='intraInRange'
         elif (distLowThres>-1 and self.distance <= distLowThres):
