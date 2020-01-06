@@ -193,7 +193,8 @@ def main():
     # generate a file containing the list of chromosomes in the current file
     #====================
     t = os.path.basename(os.path.realpath(OutFile))
-    temp_ChrName_File = OutDir + '/' + t[0:(t.rfind('.')-1)] + '_chrName.bed'
+    # temp_ChrName_File = OutDir + '/' + t[0:(t.rfind('.')-1)] + '_chrName.bed'
+    temp_ChrName_File = OutDir + '/' + t[0:t.rfind('.')] + '_chrName.bed'
     print('temp_ChrName_File: ', str(temp_ChrName_File))
     if (gzip_inp == 1):
         if (headerInp == 1):
