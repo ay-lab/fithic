@@ -12,7 +12,7 @@ def parse_args(arguments):
     parser.add_argument("-i", "--interactions", help="Path to the interactions file to generate bias values",required=True, type=str)
     parser.add_argument("-f", "--fragments", help="Path to the interactions file to generate bias values",required=True, type=str)
     parser.add_argument("-o", "--output", help="Full path to output the generated bias file to", required=True, type=str)
-    parser.add_argument("-x", "--percentOfSparseToRemove", help="Percent of diagonal to remove", required=False, type=float)
+    parser.add_argument("-x", "--percentOfSparseToRemove", help="Percent of diagonal to remove", required=False, type=float, default=0.05)
     return parser.parse_args()
 
 def loadfastfithicInteractions(interactionsFile, fragsFile):
@@ -49,19 +49,22 @@ def loadfastfithicInteractions(interactionsFile, fragsFile):
     z = np.asarray(z)
     sparseMatrix = sps.coo_matrix((z, (x,y)), shape=(ctr,ctr))
     rawMatrix = sparseMatrix + sparseMatrix.T
-    endT = time.time() 
+    endT = time.time()
     print("Sparse matrix creation took %s seconds" % (endT-startT))
     return rawMatrix, revFrag
 
-def returnBias(rawMatrix, perc=0.05):
+def returnBias(rawMatrix, perc):
     R = rawMatrix.sum()
     mtxAndRemoved = removeZeroDiagonalCSR(rawMatrix, perc)
-    initialSize = rawMatrix.shape[0]
+    print("Sparse rows removed")
+    initialSize = rawMatrix.shape
+    print("Initial matrix size: %s rows and %s columns" % (initialSize[0], initialSize[1]))
     rawMatrix = mtxAndRemoved[0]
     removed = mtxAndRemoved[1]
-    newSize = rawMatrix.shape[0]
+    newSize = rawMatrix.shape
+    print("New matrix size: %s rows and %s columns" % (newSize[0], newSize[1]))
 
-    print("Generating Bias Values")
+    print("Normalizing with KR Algorithm")
     result = knightRuizAlg(rawMatrix)
     colVec = result[0]
     #x = sps.diags(colVec.flatten(), 0, format='csr')
@@ -70,28 +73,23 @@ def returnBias(rawMatrix, perc=0.05):
     biasWZeros = addZeroBiases(removed, bias)
     return biasWZeros
 
-def removeZeroDiagonalCSR(mtx, i):
-    print("Remove zero")
+def removeZeroDiagonalCSR(mtx, perc):
     iteration = 0
     toRemove = []
     ctr = 0
     rowSums = mtx.sum(axis=0)
     rowSums = list(np.array(rowSums).reshape(-1,))
     rowSums = list(enumerate(rowSums))
-    #for value in rowSums:
-    #    if int(value[1]) == 0:
-    #        toRemove.append(value[0])
-    #        rowSums.remove(value) 
     rowSums.sort(key=lambda tup: tup[1])
     size = len(rowSums)
-    perc = i
     rem = int(perc * size)
-    print(rem)
+    print("Removing %s percent of most sparse bins" % (perc))
+    print("... corresponds to %s total rows" % (rem))
     valToRemove = rowSums[rem][1]
-    print(valToRemove)
+    #print(valToRemove)
+    print("... corresponds to all bins with less than or equal to %s total interactions" % valToRemove)
     for value in rowSums:
         if value[1] <= valToRemove:
-            #print(value[1])
             toRemove.append(value[0])
     list(set(toRemove))
     toRemove.sort()
@@ -243,6 +241,25 @@ def knightRuizAlg(A, tol=1e-6, f1 = False):
 
     return [x,i,k]
 
+def checkBias(biasvec):
+    std = np.std(biasvec)
+    mean = np.mean(biasvec)
+    median = np.median(biasvec)
+    if (mean < 0.5 or mean > 2): 
+        print("WARNING... Bias vector has a mean outside of typical range (0.5, 2).")
+        print("Consider running with a larger -x option if problems occur")
+        print("Mean\t%s" % mean)
+        print("Median\t%s" % median)
+        print("Std. Dev.\t%s" % std)
+    else:
+        if (median<0.5 or median > 2):
+            print("WARNING... Bias vector has a median outside of typical range (0.5, 2).")
+            print("Consider running with a larger -x option if problems occur")
+            print("Mean\t%s" % mean)
+            print("Median\t%s" % median)
+            print("Std. Dev.\t%s" % std)
+    return
+
 def outputBias(biasCol, revFrag, outputFilePath):
     bpath = outputFilePath
     with gzip.open(bpath,'wt') as biasFile:
@@ -255,21 +272,10 @@ def outputBias(biasCol, revFrag, outputFilePath):
             ctr += 1
 
 def main():
-    x = np.array([[1,2,3],[2,1,4],[3,4,5]])
-    print(x)
-    print(computeBiasVector(knightRuizAlg(x)[0]))
-    x = np.array([[3,1,2],[1,7,1],[2,1,4]])
-    print(x)
-    print(computeBiasVector(knightRuizAlg(x)[0]))
-    x = np.array([[3,1,2,0,0,0],[1,7,1,0,0,0],[2,1,4,0,0,0],[0,0,0,1,2,3],[0,0,0,2,1,4],[0,0,0,3,4,5]])
-    print(x)
-    print(computeBiasVector(knightRuizAlg(x)[0]))
     args = parse_args(sys.argv[3:])
     matrix,revFrag = loadfastfithicInteractions(args.interactions, args.fragments)
-    if args.percentOfSparseToRemove:
-        bias = returnBias(matrix, args.percentOfSparseToRemove)
-    else:
-        bias = returnBias(matrix)
+    bias = returnBias(matrix, args.percentOfSparseToRemove)
+    checkBias(bias)
     outputBias(bias, revFrag, args.output)
 
 

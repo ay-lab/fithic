@@ -37,6 +37,9 @@ dir = os.path.dirname(__file__)
 version_py = os.path.join(dir, "_version.py")
 exec(open(version_py).read())
 
+#============================
+# parse input arguments
+#============================
 def parse_args(args):
     parser = argparse.ArgumentParser(description="Check the help flag")
 
@@ -120,6 +123,9 @@ def parse_args(args):
 
     return parser.parse_args()
 
+#============================
+# main function
+#============================
 def main():
     args = parse_args(sys.argv[1:])
     print("\n")
@@ -302,12 +308,19 @@ def main():
     logfile = os.path.join(outputPath, libName+".fithic.log")
 
     ##maindic will be generated first using the interactions file only
-    mainDic={} # given a distance this dictionary will return [Npairs,TotalContactCount] for only those interactions present in the interactions file
-    (mainDic,observedInterAllSum,observedIntraAllSum,observedIntraInRangeSum) = read_Interactions(contactCountsFile, biasFile)
+    # given a distance this dictionary will return [Npairs,TotalContactCount] 
+    # for only those interactions present in the interactions file
+    # applicable for intra chromosomal interactions
+    mainDic={} 
+
+    # modification - sourya - returning "observedInterAllCount" argument
+    (mainDic,observedInterAllCount,observedInterAllSum,observedIntraAllSum,observedIntraInRangeSum) = read_Interactions(contactCountsFile, biasFile)
     binStats = makeBinsFromInteractions(mainDic, noOfBins, observedIntraInRangeSum)
 
     #Enumerate (fast version) or generate (otherwise) all possible pairs of fragments within the range of interest.
-    (binStats,noOfFrags, maxPossibleGenomicDist, possibleIntraInRangeCount, possibleInterAllCount, interChrProb, baselineIntraChrProb)= generate_FragPairs(binStats, fragsFile, resolution)
+    # modification - sourya - appended "observedInterAllCount" argument
+    # and also added "observedInterAllSum" argument
+    (binStats,noOfFrags, maxPossibleGenomicDist, possibleIntraInRangeCount, possibleInterAllCount, interChrProb, baselineIntraChrProb) = generate_FragPairs(observedInterAllCount, observedInterAllSum, binStats, fragsFile, resolution)
 
     #read and parse bias values for each locus from ICE or KR normalization output
     if biasFile:
@@ -322,8 +335,11 @@ def main():
     print("Spline fit Pass 1 starting...")
     outliersline = SortedList()
     outliersdist = SortedList()
+    
     #fit a smooth spline to the bin values, and compute and write p values/q values
-    splineXinit,splineYinit,residual,outliersline, outliersdist, FDRXinit, FDRYinit= fit_Spline(mainDic,x,y,yerr,contactCountsFile,os.path.join(outputPath,libName+".spline_pass1"),biasDic, outliersline, outliersdist, observedIntraInRangeSum, possibleIntraInRangeCount, possibleInterAllCount, observedIntraAllSum, observedInterAllSum, resolution, 1)
+    # modified - sourya - added the parameter observedInterAllCount
+    # the parameter "observedInterAllSum" is already present
+    splineXinit,splineYinit,residual,outliersline, outliersdist, FDRXinit, FDRYinit= fit_Spline(mainDic,x,y,yerr,contactCountsFile,os.path.join(outputPath,libName+".spline_pass1"),biasDic, outliersline, outliersdist, observedIntraInRangeSum, possibleIntraInRangeCount, possibleInterAllCount, observedInterAllCount, observedIntraAllSum, observedInterAllSum, biasLowerBound, biasUpperBound, resolution, 1)
     print("Number of outliers is... %s" % len(outliersline))
     splinefit1en = time.time()
     print("Spline fit Pass 1 completed. Time took %s" % (splinefit1en-splinefit1st))
@@ -335,15 +351,26 @@ def main():
             break
         print("\n")
         print("\n")
-        (mainDic,observedInterAllSum,observedIntraAllSum,observedIntraInRangeSum) = read_Interactions(contactCountsFile, biasFile, outliersline)
+
+        # modification - sourya - returning "observedInterAllCount" argument
+        (mainDic,observedInterAllCount,observedInterAllSum,observedIntraAllSum,observedIntraInRangeSum) = read_Interactions(contactCountsFile, biasFile, outliersline)
         binStats = makeBinsFromInteractions(mainDic, noOfBins, observedIntraInRangeSum, outliersdist)
-        (binStats,noOfFrags, maxPossibleGenomicDist, possibleIntraInRangeCount,possibleInterAllCount, interChrProb, baselineIntraChrProb)= generate_FragPairs(binStats, fragsFile, resolution)
+
+        # modification - sourya - appended "observedInterAllCount" argument
+        # and also appended "observedInterAllSum" argument
+        (binStats,noOfFrags, maxPossibleGenomicDist, possibleIntraInRangeCount,possibleInterAllCount, interChrProb, baselineIntraChrProb)= generate_FragPairs(observedInterAllCount, observedInterAllSum, binStats, fragsFile, resolution)
+
         (x,y,yerr)= calculateProbabilities(mainDic, binStats,resolution,os.path.join(outputPath,libName+".fithic_pass"+str(i)), observedIntraInRangeSum)
+        
+        #fit a smooth spline to the bin values, and compute and write p values/q values
+        # modified - sourya - added the parameter observedInterAllCount
+        # the parameter "observedInterAllSum" is already present
         splinefitst=time.time()
         print("Spline fit Pass %s starting..." % i)
-        splineX,splineY,residual,outliersline, outliersdist, FDRX, FDRY= fit_Spline(mainDic,x,y,yerr,contactCountsFile,os.path.join(outputPath,libName+".spline_pass"+str(i)),biasDic, outliersline, outliersdist, observedIntraInRangeSum, possibleIntraInRangeCount, possibleInterAllCount, observedIntraAllSum, observedInterAllSum, resolution, i)
+        splineX,splineY,residual,outliersline, outliersdist, FDRX, FDRY= fit_Spline(mainDic,x,y,yerr,contactCountsFile,os.path.join(outputPath,libName+".spline_pass"+str(i)),biasDic, outliersline, outliersdist, observedIntraInRangeSum, possibleIntraInRangeCount, possibleInterAllCount, observedInterAllCount, observedIntraAllSum, observedInterAllSum, biasLowerBound, biasUpperBound, resolution, i)
         splinefiten = time.time()
         print("Spline fit Pass %s completed. Time took %s" % (i,(splinefit1en-splinefit1st)))
+
         if visual:
             compare_Spline_FDR(FDRXinit, FDRYinit, FDRX, FDRY, os.path.join(outputPath, libName+".spline_FDR_comparison"),str(i))
             compareFits_Spline(splineXinit, splineYinit, splineX, splineY, os.path.join(outputPath,libName+".spline_comparison"), str(i))
@@ -353,6 +380,12 @@ def main():
 
 ##FUNCTIONS START###
 
+#============================
+# reading interactions from input file
+# parameters: 
+# contactCountsFile: file storing the contact counts for interacting fragments
+#                    the format should be ch1,mid1,ch2,mid2,contactCount (tab delimited)
+#============================
 def read_Interactions(contactCountsFile, biasFile, outliers=None):
     mainDic={}
     print("Reading the contact counts file to generate bins...")
@@ -390,11 +423,18 @@ def read_Interactions(contactCountsFile, biasFile, outliers=None):
                 observedIntraAllSum +=interxn.getCount()
                 observedIntraAllCount +=1
                 if interactionType=='intraInRange':
+                    # only the intra chromosomal interactions within the specified distance thresholds
+                    # are put in the dictionary "mainDic"
                     #interxn.setDistance(interxn.getDistance()+(1000-interxn.getDistance()) % 1000)
                     minObservedGenomicDist=min(minObservedGenomicDist,interxn.getDistance())
                     maxObservedGenomicDist=max(maxObservedGenomicDist,interxn.getDistance())
+                    # check if the specified distance of this interaction
+                    # exists in the dictionary containing interaction distances
+                    # otherwise append the current distance
                     if interxn.getDistance() not in mainDic:
+                        # default entry of the dictionary: two zeros: Npairs and TotalContactCount
                         mainDic[interxn.getDistance()] = [0,0]
+                    # add the contact count and the current pair information
                     mainDic[interxn.getDistance()][1]+=interxn.getCount()
                     observedIntraInRangeSum +=interxn.getCount()
                     observedIntraInRangeCount +=1
@@ -409,8 +449,17 @@ def read_Interactions(contactCountsFile, biasFile, outliers=None):
         log.write("Observed, Inter-chr all: pairs= "+str(observedInterAllCount) +"\t totalCount= "+str(observedInterAllSum)+"\n")
         log.write("Range of observed genomic distances [%s %s]" % (minObservedGenomicDist,maxObservedGenomicDist) + "\n"),
         log.write("\n")
-    return (mainDic,observedInterAllSum,observedIntraAllSum,observedIntraInRangeSum) # from read_Interactions
 
+    # modification - sourya - returning "observedInterAllCount" argument
+    return (mainDic,observedInterAllCount,observedInterAllSum,observedIntraAllSum,observedIntraInRangeSum) # from read_Interactions
+
+#============================
+# function to distribute input interactions into bins
+# Note: this is the equal occupancy binning function
+# parameters:
+# mainDic: dictionary containing different distance values and the number of interactions falling in each category
+# observedIntraInRangeSum: total contact count of all intra chromosomal interactions having distance within the specified distance range
+#============================
 def makeBinsFromInteractions(mainDic,noOfBins, observedIntraInRangeSum, outliersdist=None):
     with open(logfile, 'a') as log:
         log.write("Making equal occupancy bins\n")
@@ -503,7 +552,13 @@ def makeBinsFromInteractions(mainDic,noOfBins, observedIntraInRangeSum, outliers
         log.write("\n")
     return binStats
 
-def generate_FragPairs(binStats, fragsfile, resolution):
+#================================
+# function to list all possible fragment pairs
+# irrespective of the presence or absence of contact counts
+#================================
+# modification - sourya - appended "observedInterAllCount" argument
+# and also added "observedInterAllSum" argument
+def generate_FragPairs(observedInterAllCount, observedInterAllSum, binStats, fragsfile, resolution): 
     if resolution:
         with open(logfile, 'a') as log:
             log.write("Looping through all possible fragment pairs in-range\n")
@@ -534,6 +589,7 @@ def generate_FragPairs(binStats, fragsfile, resolution):
             if currHit>=mappThres:
                 allFragsDic[currChr].append(currMid)
 
+# fixed a bug when there are empty chromosomes when reading fragments. - ningbioinfostruggling
     needTOdelete = []
     for ch in allFragsDic:
         length = len(allFragsDic[ch])
@@ -565,37 +621,75 @@ def generate_FragPairs(binStats, fragsfile, resolution):
                     possibleIntraInRangeCountPerChr += npairs
                 else:
                     continue
-                currBin = binStats[binTracker]
-                minOfBin = currBin[0][0]
-                maxOfBin = currBin[0][1]
-                while not (minOfBin<=intxnDistance<=maxOfBin):
-                    binTracker += 1
-                    if binTracker not in binStats:
-                        binTracker-=1
-                        currBin = binStats[binTracker]
-                        minOfBin = currBin[0][0]
-                        maxOfBin = currBin[0][1]
-                        break
-                    else:
-                        currBin = binStats[binTracker]
-                        minOfBin = currBin[0][0]
-                        maxOfBin = currBin[0][1]
-                currBin[7]+=npairs
-                currBin[1]+=npairs
-                currBin[3]+=(float(intxnDistance/distScaling)*npairs)
-               # possibleIntraInRangeCountPerChr += npairs
+
+                # condition added - sourya
+                if (len(binStats) > 0) and (binTracker in binStats):
+                    currBin = binStats[binTracker]
+                    minOfBin = currBin[0][0]
+                    maxOfBin = currBin[0][1]
+                    while not (minOfBin<=intxnDistance<=maxOfBin):
+                        binTracker += 1
+                        if binTracker not in binStats:
+                            binTracker-=1
+                            currBin = binStats[binTracker]
+                            minOfBin = currBin[0][0]
+                            maxOfBin = currBin[0][1]
+                            break
+                        else:
+                            currBin = binStats[binTracker]
+                            minOfBin = currBin[0][0]
+                            maxOfBin = currBin[0][1]
+                    currBin[7]+=npairs
+                    currBin[1]+=npairs
+                    currBin[3]+=(float(intxnDistance/distScaling)*npairs)
+                    possibleIntraInRangeCountPerChr += npairs
+            # number of all possible inter-chromosomal fragment pairs 
+            # involving the current chromosome
             possibleInterAllCount+=n*(noOfFrags-n)
+            # number of all possible intra-chromosomal fragment pairs for the current chromosome
             possibleIntraAllCount+=(n*(n+1))/2 # n(n-1) if excluding self
             with open(logfile, 'a') as log:
                 log.write("Chromosome " +repr(ch) +",\t"+str(n) +" mappable fragments, \t"+str(possibleIntraInRangeCountPerChr)\
                 +" possible intra-chr fragment pairs in range,\t" + str((noOfFrags-n)*n) +" possible inter-chr fragment pairs\n")
+            # accumulate the total number of intra-chromosomal contacts possible within this distance range 
+            # (possibleIntraInRangeCountPerChr) in the global variable "possibleIntraInRangeCount"
             possibleIntraInRangeCount += possibleIntraInRangeCountPerChr
+        # after looping through all the chromosomes, total number of inter-chromosomal contacts
+        # include each chromosome twice - so divide the "possibleInterAllCount" by 2
         possibleInterAllCount/=2
+        # most important - sourya - modification
+        # previously inter-chromosomal contact probability was computed by dividing the 
+        # oberved contact count sum with the number of possible inter-chromosomal fragment pairs
+        # now the probability is computed by dividing with the number of observed inter-chromosomal contact count
+        # "observedInterAllCount"
         try:
-            interChrProb=1.0/possibleInterAllCount
+            # modification -sourya
+            if 0:
+                interChrProb=1.0/possibleInterAllCount
+            else:
+                # sourya - tried using inter-chromosomal locus pairs with nonzero contact count
+                if 1:
+                    if (observedInterAllCount > 0):
+                        interChrProb=1.0/observedInterAllCount
+                    else:
+                        interChrProb=0
+                # sourya - now tried using obvserved inter-chromosomal all contact counts (sum)
+                if 0:
+                    if (observedInterAllSum > 0):
+                        interChrProb=1.0/observedInterAllSum
+                    else:
+                        interChrProb=0
+            # end modification -sourya
         except:
-            interChrProb = 0
-        baselineIntraChrProb=1.0/possibleIntraAllCount
+            interChrProb = 0        
+        # baseline intra-chromosomal contact probability is obtained by 
+        # dividing with respect to the number of possible intra-chromosomal contact count pairs
+        # modification -sourya
+        if (possibleIntraAllCount > 0):
+            baselineIntraChrProb=1.0/possibleIntraAllCount
+        else:
+            baselineIntraChrProb=0
+        # end modification -sourya
 
     else:
         noOfFrags = 0
@@ -621,35 +715,69 @@ def generate_FragPairs(binStats, fragsfile, resolution):
                     minPossibleGenomicDist = min(minPossibleGenomicDist, intxnDistance)
                     npairs = templen-d
                     d+=1
-                    currBin = binStats[binTracker]
-                    minOfBin = currBin[0][0]
-                    maxOfBin = currBin[0][1]
-                    while not (minOfBin<=intxnDistance<=maxOfBin):
-                        binTracker += 1
-                        if binTracker not in binStats:
-                            binTracker-=1
-                            currBin = binStats[binTracker]
-                            minOfBin = currBin[0][0]
-                            maxOfBin = currBin[0][1]
-                            break
-                        else:
-                            currBin = binStats[binTracker]
-                            minOfBin = currBin[0][0]
-                            maxOfBin = currBin[0][1]
-                    currBin[7]+=npairs
-                    currBin[1]+=1
-                    currBin[3]+=float(intxnDistance/distScaling)*npairs
-                    possibleIntraAllCount += 1
+                    # condition added - sourya
+                    if (len(binStats) > 0) and (binTracker in binStats):
+                        currBin = binStats[binTracker]
+                        minOfBin = currBin[0][0]
+                        maxOfBin = currBin[0][1]
+                        while not (minOfBin<=intxnDistance<=maxOfBin):
+                            binTracker += 1
+                            if binTracker not in binStats:
+                                binTracker-=1
+                                currBin = binStats[binTracker]
+                                minOfBin = currBin[0][0]
+                                maxOfBin = currBin[0][1]
+                                break
+                            else:
+                                currBin = binStats[binTracker]
+                                minOfBin = currBin[0][0]
+                                maxOfBin = currBin[0][1]
+                        currBin[7]+=npairs
+                        currBin[1]+=1
+                        currBin[3]+=float(intxnDistance/distScaling)*npairs
+                        possibleIntraAllCount += 1
             with open(logfile, 'a') as log:
                 log.write("Chromosome " +repr(ch) +",\t"+str(templen) +" mappable fragments, \t"+str(possibleIntraInRangeCountPerChr)\
                 +" possible intra-chr fragment pairs in range,\t" + str((noOfFrags-templen)*templen) +" possible inter-chr fragment pairs\n")
+            # accumulate the total number of intra-chromosomal contacts possible within this distance range 
+            # (possibleIntraInRangeCountPerChr) in the global variable "possibleIntraInRangeCount"
             possibleIntraInRangeCount += possibleIntraInRangeCountPerChr
+        # after looping through all the chromosomes, total number of inter-chromosomal contacts
+        # include each chromosome twice - so divide the "possibleInterAllCount" by 2        
         possibleInterAllCount/=2
+        # most important - sourya - modification
+        # previously inter-chromosomal contact probability was computed by dividing the 
+        # oberved contact count sum with the number of possible inter-chromosomal fragment pairs
+        # now the probability is computed by dividing with the number of observed inter-chromosomal contact count
+        # "observedInterAllCount"        
         try:
-            interChrProb=1.0/possibleInterAllCount
+            # modification -sourya            
+            if 0:
+                interChrProb=1.0/possibleInterAllCount    
+            else:
+                # sourya - tried using inter-chromosomal locus pairs with nonzero contact count
+                if 1:
+                    if (observedInterAllCount > 0):
+                        interChrProb=1.0/observedInterAllCount
+                    else:
+                        interChrProb=0
+                # sourya - now tried using obvserved inter-chromosomal all contact counts (sum)
+                if 0:
+                    if (observedInterAllSum > 0):
+                        interChrProb=1.0/observedInterAllSum
+                    else:
+                        interChrProb=0                        
+            # end modification -sourya
         except:
             interChrProb = 0
-        baselineIntraChrProb=1.0/possibleIntraAllCount
+        # baseline intra-chromosomal contact probability is obtained by 
+        # dividing with respect to the number of possible intra-chromosomal contact count pairs            
+        # modification -sourya
+        if (possibleIntraAllCount > 0): 
+            baselineIntraChrProb=1.0/possibleIntraAllCount
+        else:
+            baselineIntraChrProb=0
+        # end modification -sourya
     endT = time.time()
     print("Fragments file read. Time took %s" % (endT-startT))
 
@@ -658,6 +786,7 @@ def generate_FragPairs(binStats, fragsfile, resolution):
         log.write("Possible, Intra-chr in range: pairs= %s \n" % (possibleIntraInRangeCount))
         log.write("Possible, Intra-chr all: pairs= %s \n" % (possibleIntraAllCount))
         log.write("Possible, Inter-chr all: pairs= %s \n" % (possibleInterAllCount))
+        # modification - sourya
         log.write("Desired genomic distance range   [%d %s] \n" % (distLowThres,distUpThres)),
         log.write("Range of possible genomic distances  [%d  %d] \n" % (minPossibleGenomicDist, maxPossibleGenomicDist)),
         log.write("Baseline intrachromosomal probability is %s \n" % (baselineIntraChrProb)),
@@ -665,7 +794,9 @@ def generate_FragPairs(binStats, fragsfile, resolution):
 
     return (binStats,noOfFrags, maxPossibleGenomicDist, possibleIntraInRangeCount, possibleInterAllCount, interChrProb, baselineIntraChrProb) # return from generate_FragPairs
 
-
+#=====================
+# read bias information
+#=====================
 def read_biases(infilename):
     global biasLowerBound
     global biasUpperBound
@@ -707,6 +838,10 @@ def read_biases(infilename):
     print("Bias file read. Time took %s" % (endt-startt))
     return biasDic # from read_biases
 
+#==================================
+# function to compute the contact probabilities
+# applied for intra-chromosomal interactions
+#==================================
 def calculateProbabilities(mainDic,binStats,resolution,outfilename,observedIntraInRangeSum):
     with open(logfile, 'a') as log:
         log.write("\nCalculating probability means and standard deviations of contact counts\n"),
@@ -739,7 +874,12 @@ def calculateProbabilities(mainDic,binStats,resolution,outfilename,observedIntra
         sumDistB4Scaling = currBin[3]
         possPairsInRange = currBin[1]
         try:
-            avgCC = (1.0*sumCC/possPairsInRange)/observedIntraInRangeSum
+            # modification -sourya
+            if (possPairsInRange > 0) and (observedIntraInRangeSum > 0):
+                avgCC = (1.0*sumCC/possPairsInRange)/observedIntraInRangeSum
+            else:
+                avgCC = 0
+            # end modification -sourya
         except:
             print("WARNING - Zero avg. contact in bin. Ensure interaction file is correct.")
             avgCC = 0
@@ -780,7 +920,11 @@ def calculateProbabilities(mainDic,binStats,resolution,outfilename,observedIntra
     return [x,y,yerr] # from calculateProbabilities
 
 
-def fit_Spline(mainDic,x,y,yerr,infilename,outfilename,biasDic,outliersline,outliersdist,observedIntraInRangeSum, possibleIntraInRangeCount, possibleInterAllCount, observedIntraAllSum, observedInterAllSum, resolution, passNo):
+#==================================
+# function to fit spline, apply statistical significance correction (q-value)
+# modified - sourya - added the parameter observedInterAllCount
+#==================================
+def fit_Spline(mainDic,x,y,yerr,infilename,outfilename,biasDic,outliersline,outliersdist,observedIntraInRangeSum, possibleIntraInRangeCount, possibleInterAllCount, observedInterAllCount, observedIntraAllSum, observedInterAllSum, biasLowerBound, biasUpperBound, resolution, passNo):
     with open(logfile, 'a') as log:
         log.write("\nFitting a univariate spline to the probability means\n"),
         log.write("------------------------------------------------------------------------------------\n"),
@@ -819,7 +963,6 @@ def fit_Spline(mainDic,x,y,yerr,infilename,outfilename,biasDic,outliersline,outl
         splineY=ius(splineX)
         #print(splineY)
         #print(yerr)
-
 
         ir = IsotonicRegression(increasing=False)
         newSplineY = ir.fit_transform(splineX,splineY)
@@ -869,6 +1012,10 @@ def fit_Spline(mainDic,x,y,yerr,infilename,outfilename,biasDic,outliersline,outl
     q_vals=[]
     biasl=[]
     biasr=[]
+    # add - sourya
+    # declare list of expected contact counts
+    expCC_List=[]
+    # end add - sourya
     for line in infile:
         ch1,mid1,ch2,mid2,contactCount=line.rstrip().split()
         contactCount = float(contactCount)
@@ -913,41 +1060,106 @@ def fit_Spline(mainDic,x,y,yerr,infilename,outfilename,biasDic,outliersline,outl
             prior_p=1.0
             p_val=1.0
             discardCount+=1
+            # add - sourya
+            # computing expected contact count
+            expected_CC = 0
+            # end add - sourya            
         elif interactionType=='intraInRange' and not interOnly:
             distToLookUp=max(interxn.getDistance(),min(x))
             distToLookUp=min(distToLookUp,max(x))
             i=min(bisect.bisect_left(splineX, distToLookUp),len(splineX)-1)
             prior_p=newSplineY[i]*(bias1*bias2)
             p_val=scsp.bdtrc(interxn.getCount()-1,observedIntraInRangeSum,prior_p)
+            # add - sourya
+            # computing expected contact count
+            # if bias values both are positive then use the probability multiplied by the bias values
+            # otherwise, use the probability value only
+            if ((bias1 >= biasLowerBound) and (bias1 <= biasUpperBound) and (bias2 >= biasLowerBound) and (bias2 <= biasUpperBound)):
+                expected_CC = (observedIntraInRangeSum * prior_p)
+            else:
+                expected_CC = 0
+            # end add - sourya
             intraInRangeCount +=1
         elif interactionType =='intraShort' and not interOnly:
             prior_p=1.0
             p_val=1.0
             intraVeryProximalCount += 1
+            # add - sourya
+            # computing expected contact count
+            expected_CC = 0
+            # end add - sourya
         elif interactionType =='intraLong' and not interOnly:
             prior_p=1.0
             #p_val=scsp.bdtrc(interxn.getCount()-1, observedIntraAllSum,prior_p) ##RUNBY
             p_val=1.0
             intraOutOfRangeCount += 1
+            # add - sourya
+            # computing expected contact count
+            expected_CC = 0
+            # end add - sourya            
         else:
             if allReg or interOnly:
                 prior_p=interChrProb*(bias1*bias2)
                 p_val=scsp.bdtrc(interxn.getCount()-1,observedInterAllSum,prior_p)
                 interCount += 1
+                # add - sourya
+                # computing expected contact count
+                if ((bias1 >= biasLowerBound) and (bias1 <= biasUpperBound) and (bias2 >= biasLowerBound) and (bias2 <= biasUpperBound)):
+                    expected_CC = (observedInterAllSum * prior_p)
+                else:
+                    expected_CC = 0
+                # end add - sourya                
             else:
                 p_val=1.0
                 #p_vals.append(p_val)
+                # add - sourya
+                # computing expected contact count
+                expected_CC=0
+                # end add - sourya
+
+        # after the iteration, add p-value in the final list
         p_vals.append(p_val)
+        # add - sourya
+        # after the iteration, add the expected contact count in the final list
+        expCC_List.append(expected_CC)
+        # end add - sourya
     infile.close()
 
     outlierThres = 0
     # Do the BH FDR correction
     if allReg:
-        outlierThres=1.0/(possibleIntraInRangeCount+possibleInterAllCount)
-        q_vals=myStats.benjamini_hochberg_correction(p_vals, possibleInterAllCount+possibleIntraInRangeCount)
+        # modified - sourya
+        # previously all possible inter-chromosomal interactions were considered
+        # now only observed inter-chromosomal interactions are considered
+        if 0:
+            outlierThres=1.0/(possibleIntraInRangeCount+possibleInterAllCount)
+            q_vals=myStats.benjamini_hochberg_correction(p_vals, possibleInterAllCount+possibleIntraInRangeCount)
+        else:
+            # sourya - tried using observedInterAllCount
+            if 1:
+                outlierThres=1.0/(possibleIntraInRangeCount+observedInterAllCount)
+                q_vals=myStats.benjamini_hochberg_correction(p_vals, observedInterAllCount+possibleIntraInRangeCount)
+            # sourya - tried using observedInterAllSum
+            if 0:
+                outlierThres=1.0/(possibleIntraInRangeCount+observedInterAllSum)
+                q_vals=myStats.benjamini_hochberg_correction(p_vals, observedInterAllSum+possibleIntraInRangeCount)
+
     elif interOnly and not allReg:
-        outlierThres = 1.0/possibleInterAllCount
-        q_vals=myStats.benjamini_hochberg_correction(p_vals, possibleInterAllCount)
+        # modified - sourya
+        # previously all possible inter-chromosomal interactions were considered
+        # now only observed inter-chromosomal interactions are considered
+        if 0:
+            outlierThres = 1.0/possibleInterAllCount
+            q_vals=myStats.benjamini_hochberg_correction(p_vals, possibleInterAllCount)
+        else:
+            # sourya - tried using observedInterAllCount
+            if 1:
+                outlierThres = 1.0/observedInterAllCount
+                q_vals=myStats.benjamini_hochberg_correction(p_vals, observedInterAllCount)
+            # sourya - tried using observedInterAllSum
+            if 0:
+                outlierThres = 1.0/observedInterAllSum
+                q_vals=myStats.benjamini_hochberg_correction(p_vals, observedInterAllSum)
     else:
         outlierThres = 1.0/possibleIntraInRangeCount
         q_vals=myStats.benjamini_hochberg_correction(p_vals, possibleIntraInRangeCount)
@@ -960,7 +1172,13 @@ def fit_Spline(mainDic,x,y,yerr,infilename,outfilename,biasDic,outliersline,outl
     else:
         outfile =gzip.open(outfilename+'.significances.txt.gz', 'wt')
     print("Writing p-values and q-values to file %s" % (outfilename + ".significances.txt"))
-    outfile.write("chr1\tfragmentMid1\tchr2\tfragmentMid2\tcontactCount\tp-value\tq-value\tbias1\tbias2\n")
+
+    # modification - sourya
+    # previously 9 fields were written
+    # outfile.write("chr1\tfragmentMid1\tchr2\tfragmentMid2\tcontactCount\tp-value\tq-value\tbias1\tbias2\n")
+    # now we write an additional field, named expected contact count
+    outfile.write("chr1\tfragmentMid1\tchr2\tfragmentMid2\tcontactCount\tp-value\tq-value\tbias1\tbias2\tExpCC\n")
+    # end modification - sourya
     count=0
     for line in infile:
         words=line.rstrip().split()
@@ -973,13 +1191,28 @@ def fit_Spline(mainDic,x,y,yerr,infilename,outfilename,biasDic,outliersline,outl
         q_val=q_vals[count]
         bias1=biasl[count]
         bias2=biasr[count]
+        # add - sourya
+        # add the expected contact count
+        expected_CC=expCC_List[count]
+        # end add - sourya        
 
         if (allReg or interOnly) and chr1!=chr2:
-            outfile.write("%s\t%d\t%s\t%d\t%d\t%e\t%e\t%e\t%e\n" % (str(chr1), midPoint1, str(chr2), midPoint2, interactionCount, p_val, q_val, bias1, bias2))
+            # modification - sourya
+            # previously 9 fields were written
+            # outfile.write("%s\t%d\t%s\t%d\t%d\t%e\t%e\t%e\t%e\n" % (str(chr1), midPoint1, str(chr2), midPoint2, interactionCount, p_val, q_val, bias1, bias2))
+            # now we write an additional field, named expected contact count
+            outfile.write("%s\t%d\t%s\t%d\t%d\t%e\t%e\t%e\t%e\t%f\n" % (str(chr1), midPoint1, str(chr2), midPoint2, interactionCount, p_val, q_val, bias1, bias2, expected_CC))
+            # end modification - sourya
+        
         if (allReg or not interOnly) and chr1==chr2:
             interactionDistance = abs(midPoint1-midPoint2)
             if myUtils.in_range_check(interactionDistance,distLowThres, distUpThres):
-                outfile.write("%s\t%d\t%s\t%d\t%d\t%e\t%e\t%e\t%e\n" % (str(chr1), midPoint1, str(chr2), midPoint2, interactionCount, p_val, q_val, bias1, bias2))
+                # modification - sourya
+                # previously 9 fields were written
+                # outfile.write("%s\t%d\t%s\t%d\t%d\t%e\t%e\t%e\t%e\n" % (str(chr1), midPoint1, str(chr2), midPoint2, interactionCount, p_val, q_val, bias1, bias2))
+                # now we write an additional field, named expected contact count
+                outfile.write("%s\t%d\t%s\t%d\t%d\t%e\t%e\t%e\t%e\t%f\n" % (str(chr1), midPoint1, str(chr2), midPoint2, interactionCount, p_val, q_val, bias1, bias2, expected_CC))
+                # end modification - sourya
 
         if p_val<outlierThres:
             outliersline.add(count)
