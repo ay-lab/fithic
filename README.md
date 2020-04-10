@@ -499,13 +499,11 @@ bash merge-filter-parallelized.sh [inputFile] [resolution] [outputDirectory] [fd
 ```
 
 ## Citing Fit-Hi-C
-If Fit-Hi-C was used in your analysis, please issue the following citation:
+If Fit-Hi-C was used in your analysis, please issue the following citations:
 
-doi: 10.1101/gr.160374.113 
+1) Arya Kaul, Sourya Bhattacharyya & Ferhat Ay 2020. "Identifying statistically significant chromatin contacts from Hi-C data with FitHiC2."  Nature Protocols. 15:991-1012, 2020. doi: 10.1038/s41596-019-0273-0. 
 
-or
-
-Ferhat Ay, Timothy L. Bailey, William S. Noble. 2014. "Statistical confidence estimation for Hi-C data reveals regulatory chromatin contacts." Genome Research. 24(6):999-1011, 2014. doi: 10.1101/gr.160374.113.
+2) Ferhat Ay, Timothy L. Bailey, William S. Noble. 2014. "Statistical confidence estimation for Hi-C data reveals regulatory chromatin contacts." Genome Research. 24(6):999-1011, 2014. doi: 10.1101/gr.160374.113.
 
 ## License
 Copyright (c), 2012, University of Washington
