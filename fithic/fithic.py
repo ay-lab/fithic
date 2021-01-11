@@ -594,57 +594,63 @@ def generate_FragPairs(observedInterAllCount, observedInterAllSum, binStats, fra
         maxFrags={}
         
         for ch in allFragsDic:
-            maxFrags[ch]=max([int(i)-resolution/2 for i in allFragsDic[ch]])
-            noOfFrags+=len(allFragsDic[ch])
-            maxPossibleGenomicDist=max(maxPossibleGenomicDist,maxFrags[ch])
+            if (len(allFragsDic[ch]) == 0):
+                # current chromosome has no associated fragment satisfying the given mappability threshold
+                # report this incident
+                print("ERROR - the chromosome " + ch + " has " + len(allFragsDic[ch]) + " valid fragments/bins and should be removed from the input fragment information !!! ")                
+            else:
+                maxFrags[ch]=max([int(i)-resolution/2 for i in allFragsDic[ch]])
+                noOfFrags+=len(allFragsDic[ch])
+                maxPossibleGenomicDist=max(maxPossibleGenomicDist,maxFrags[ch])
         
         for ch in sorted(allFragsDic.keys()):
-            maxFrag=maxFrags[ch]
-            n=len(allFragsDic[ch])
-            d=0
-            binTracker = 0
-            possibleIntraInRangeCountPerChr = 0
-            for intxnDistance in range(0,int(maxFrag+1),resolution):
-                npairs = n-d
-                d+=1
-                if myUtils.in_range_check(intxnDistance,distLowThres,distUpThres):
-                    minPossibleGenomicDist = min(minPossibleGenomicDist, intxnDistance)
-                    possibleIntraInRangeCountPerChr += npairs
-                else:
-                    continue
+            if (len(allFragsDic[ch]) > 0):
+                maxFrag=maxFrags[ch]
+                n=len(allFragsDic[ch])
+                d=0
+                binTracker = 0
+                possibleIntraInRangeCountPerChr = 0
+                for intxnDistance in range(0,int(maxFrag+1),resolution):
+                    npairs = n-d
+                    d+=1
+                    if myUtils.in_range_check(intxnDistance,distLowThres,distUpThres):
+                        minPossibleGenomicDist = min(minPossibleGenomicDist, intxnDistance)
+                        possibleIntraInRangeCountPerChr += npairs
+                    else:
+                        continue
 
-                # condition added - sourya
-                if (len(binStats) > 0) and (binTracker in binStats):
-                    currBin = binStats[binTracker]
-                    minOfBin = currBin[0][0]
-                    maxOfBin = currBin[0][1]
-                    while not (minOfBin<=intxnDistance<=maxOfBin):
-                        binTracker += 1
-                        if binTracker not in binStats:
-                            binTracker-=1
-                            currBin = binStats[binTracker]
-                            minOfBin = currBin[0][0]
-                            maxOfBin = currBin[0][1]
-                            break
-                        else:
-                            currBin = binStats[binTracker]
-                            minOfBin = currBin[0][0]
-                            maxOfBin = currBin[0][1]
-                    currBin[7]+=npairs
-                    currBin[1]+=npairs
-                    currBin[3]+=(float(intxnDistance/distScaling)*npairs)
-                    possibleIntraInRangeCountPerChr += npairs
-            # number of all possible inter-chromosomal fragment pairs 
-            # involving the current chromosome
-            possibleInterAllCount+=n*(noOfFrags-n)
-            # number of all possible intra-chromosomal fragment pairs for the current chromosome
-            possibleIntraAllCount+=(n*(n+1))/2 # n(n-1) if excluding self
-            with open(logfile, 'a') as log:
-                log.write("Chromosome " +repr(ch) +",\t"+str(n) +" mappable fragments, \t"+str(possibleIntraInRangeCountPerChr)\
-                +" possible intra-chr fragment pairs in range,\t" + str((noOfFrags-n)*n) +" possible inter-chr fragment pairs\n")
-            # accumulate the total number of intra-chromosomal contacts possible within this distance range 
-            # (possibleIntraInRangeCountPerChr) in the global variable "possibleIntraInRangeCount"
-            possibleIntraInRangeCount += possibleIntraInRangeCountPerChr
+                    # condition added - sourya
+                    if (len(binStats) > 0) and (binTracker in binStats):
+                        currBin = binStats[binTracker]
+                        minOfBin = currBin[0][0]
+                        maxOfBin = currBin[0][1]
+                        while not (minOfBin<=intxnDistance<=maxOfBin):
+                            binTracker += 1
+                            if binTracker not in binStats:
+                                binTracker-=1
+                                currBin = binStats[binTracker]
+                                minOfBin = currBin[0][0]
+                                maxOfBin = currBin[0][1]
+                                break
+                            else:
+                                currBin = binStats[binTracker]
+                                minOfBin = currBin[0][0]
+                                maxOfBin = currBin[0][1]
+                        currBin[7]+=npairs
+                        currBin[1]+=npairs
+                        currBin[3]+=(float(intxnDistance/distScaling)*npairs)
+                        possibleIntraInRangeCountPerChr += npairs
+                # number of all possible inter-chromosomal fragment pairs 
+                # involving the current chromosome
+                possibleInterAllCount+=n*(noOfFrags-n)
+                # number of all possible intra-chromosomal fragment pairs for the current chromosome
+                possibleIntraAllCount+=(n*(n+1))/2 # n(n-1) if excluding self
+                with open(logfile, 'a') as log:
+                    log.write("Chromosome " +repr(ch) +",\t"+str(n) +" mappable fragments, \t"+str(possibleIntraInRangeCountPerChr)\
+                    +" possible intra-chr fragment pairs in range,\t" + str((noOfFrags-n)*n) +" possible inter-chr fragment pairs\n")
+                # accumulate the total number of intra-chromosomal contacts possible within this distance range 
+                # (possibleIntraInRangeCountPerChr) in the global variable "possibleIntraInRangeCount"
+                possibleIntraInRangeCount += possibleIntraInRangeCountPerChr
         # after looping through all the chromosomes, total number of inter-chromosomal contacts
         # include each chromosome twice - so divide the "possibleInterAllCount" by 2
         possibleInterAllCount/=2
@@ -688,51 +694,52 @@ def generate_FragPairs(observedInterAllCount, observedInterAllSum, binStats, fra
             noOfFrags += len(allFragsDic[ch])
 
         for ch in sorted(allFragsDic.keys()):
-            countIntraPairs = 0
-            fragsPerChr = sorted(allFragsDic[ch])
-            templen = len(fragsPerChr)
-            possibleInterAllCount += (noOfFrags-templen)*templen
-            possibleIntraInRangeCountPerChr = 0
-            for x in range(templen):
-                binTracker = 0
-                d = 0
-                for y in range(x+1,templen):
-                    intxnDistance = abs(float(fragsPerChr[x])-float(fragsPerChr[y]))
-                    if myUtils.in_range_check(intxnDistance, distLowThres,distUpThres):
-                        possibleIntraInRangeCountPerChr += 1 
-                    else:
-                        continue
-                    maxPossibleGenomicDist = max(maxPossibleGenomicDist, intxnDistance)
-                    minPossibleGenomicDist = min(minPossibleGenomicDist, intxnDistance)
-                    npairs = templen-d
-                    d+=1
-                    # condition added - sourya
-                    if (len(binStats) > 0) and (binTracker in binStats):
-                        currBin = binStats[binTracker]
-                        minOfBin = currBin[0][0]
-                        maxOfBin = currBin[0][1]
-                        while not (minOfBin<=intxnDistance<=maxOfBin):
-                            binTracker += 1
-                            if binTracker not in binStats:
-                                binTracker-=1
-                                currBin = binStats[binTracker]
-                                minOfBin = currBin[0][0]
-                                maxOfBin = currBin[0][1]
-                                break
-                            else:
-                                currBin = binStats[binTracker]
-                                minOfBin = currBin[0][0]
-                                maxOfBin = currBin[0][1]
-                        currBin[7]+=npairs
-                        currBin[1]+=1
-                        currBin[3]+=float(intxnDistance/distScaling)*npairs
-                        possibleIntraAllCount += 1
-            with open(logfile, 'a') as log:
-                log.write("Chromosome " +repr(ch) +",\t"+str(templen) +" mappable fragments, \t"+str(possibleIntraInRangeCountPerChr)\
-                +" possible intra-chr fragment pairs in range,\t" + str((noOfFrags-templen)*templen) +" possible inter-chr fragment pairs\n")
-            # accumulate the total number of intra-chromosomal contacts possible within this distance range 
-            # (possibleIntraInRangeCountPerChr) in the global variable "possibleIntraInRangeCount"
-            possibleIntraInRangeCount += possibleIntraInRangeCountPerChr
+            if (len(allFragsDic[ch]) > 0):
+                countIntraPairs = 0
+                fragsPerChr = sorted(allFragsDic[ch])
+                templen = len(fragsPerChr)
+                possibleInterAllCount += (noOfFrags-templen)*templen
+                possibleIntraInRangeCountPerChr = 0
+                for x in range(templen):
+                    binTracker = 0
+                    d = 0
+                    for y in range(x+1,templen):
+                        intxnDistance = abs(float(fragsPerChr[x])-float(fragsPerChr[y]))
+                        if myUtils.in_range_check(intxnDistance, distLowThres,distUpThres):
+                            possibleIntraInRangeCountPerChr += 1 
+                        else:
+                            continue
+                        maxPossibleGenomicDist = max(maxPossibleGenomicDist, intxnDistance)
+                        minPossibleGenomicDist = min(minPossibleGenomicDist, intxnDistance)
+                        npairs = templen-d
+                        d+=1
+                        # condition added - sourya
+                        if (len(binStats) > 0) and (binTracker in binStats):
+                            currBin = binStats[binTracker]
+                            minOfBin = currBin[0][0]
+                            maxOfBin = currBin[0][1]
+                            while not (minOfBin<=intxnDistance<=maxOfBin):
+                                binTracker += 1
+                                if binTracker not in binStats:
+                                    binTracker-=1
+                                    currBin = binStats[binTracker]
+                                    minOfBin = currBin[0][0]
+                                    maxOfBin = currBin[0][1]
+                                    break
+                                else:
+                                    currBin = binStats[binTracker]
+                                    minOfBin = currBin[0][0]
+                                    maxOfBin = currBin[0][1]
+                            currBin[7]+=npairs
+                            currBin[1]+=1
+                            currBin[3]+=float(intxnDistance/distScaling)*npairs
+                            possibleIntraAllCount += 1
+                with open(logfile, 'a') as log:
+                    log.write("Chromosome " +repr(ch) +",\t"+str(templen) +" mappable fragments, \t"+str(possibleIntraInRangeCountPerChr)\
+                    +" possible intra-chr fragment pairs in range,\t" + str((noOfFrags-templen)*templen) +" possible inter-chr fragment pairs\n")
+                # accumulate the total number of intra-chromosomal contacts possible within this distance range 
+                # (possibleIntraInRangeCountPerChr) in the global variable "possibleIntraInRangeCount"
+                possibleIntraInRangeCount += possibleIntraInRangeCountPerChr
         # after looping through all the chromosomes, total number of inter-chromosomal contacts
         # include each chromosome twice - so divide the "possibleInterAllCount" by 2        
         possibleInterAllCount/=2
