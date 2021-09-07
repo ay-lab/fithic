@@ -44,8 +44,8 @@ done
 noOfBins=200
 # without normalization - interOnly and All
 for i in Dixon_IMR90_HindIII_hg19_w100000; do
-    python3 ../fithic.py -r 100000 -l "$i" -i $inI/$i.gz -f $inF/$i.gz -b $noOfBins -p $noOfPasses -o outputs/${i}.interOnly -x interOnly
-    python3 ../fithic.py -r 100000 -l "$i" -i $inI/$i.gz -f $inF/$i.gz -b $noOfBins -p $noOfPasses -o outputs/${i}.all -x All
+    python3 ../fithic.py -r 1000000 -l "$i" -i $inI/$i.gz -f $inF/$i.gz -b $noOfBins -p $noOfPasses -o outputs/${i}.interOnly -x interOnly
+    python3 ../fithic.py -r 1000000 -l "$i" -i $inI/$i.gz -f $inF/$i.gz -b $noOfBins -p $noOfPasses -o outputs/${i}.all -x All
 done
 
 # without normalization - All, nonhuman
