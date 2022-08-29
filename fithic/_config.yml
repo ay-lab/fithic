@@ -1,0 +1,4 @@
+theme: jekyll-theme-minimal
+logo: ./logo/fit-hi-c.png
+description: A Python based command line tool to assign statistical confidence to Hi-C contact maps
+title: Fit-Hi-C

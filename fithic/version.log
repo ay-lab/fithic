@@ -1,0 +1,57 @@
+
+fithic_2.0.0.tgz - 06/12/2018
+-------------------------------
+Initial release of Fit-Hi-C version 2.0
+__________________________________________________________________
+
+Notable changes:
+* Significantly faster and uses less memory
+* Required '--resolution, -r' argument
+* Required '--outDir, -o' argument
+* Specific to Python3
+* Recommended bias file use
+* Change in stdout outputs
+* Creation of fithic.log file detailing previous values
+* Complete revamp of utils/ with additional scripts provided
+* Default number of spline passes is 1. Use -p 2 for 2 passes etc.
+
+
+fithic_2.0.1-2.0.3.tgz - 06/15/2018
+-------------------------------
+Uploading to pip3
+__________________________________________________________________
+
+Took me a while to figure it out
+
+fithic_2.0.4.tgz - 07/08/2018
+-------------------------------
+Update to fit-hi-c's main script
+__________________________________________________________________
+
+* Bias files also accept non gzipped files
+* Fixed bug with outlier removal affecting distance values
+* Updated 'interOnly' to bypass any spline fitting
+
+fithic_2.0.5.tgz - 08/25/2018
+-------------------------------
+Finalizing the transition to bioconda
+__________________________________________________________________
+
+fithic_2.0.6.tgz - 01/15/2019
+-------------------------------
+Bias File Big Fix
+__________________________________________________________________
+
+* Fixed bug with reading in of bias values
+* Added new util (createFitHiCContacts-hic.sh)
+* Updated README with this util
+__________________________________________________________________
+
+fithic_2.0.7.tgz - 03/14/2019
+-------------------------------
+Small touchups + new util!
+__________________________________________________________________
+
+* Fixed test dataset to address bias file bug fix
+* Added new utils (merge-filter.sh and merge-filter-parallelized.sh)
+* Updated README with these utils
