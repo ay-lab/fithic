@@ -597,7 +597,7 @@ def generate_FragPairs(observedInterAllCount, observedInterAllSum, binStats, fra
             if (len(allFragsDic[ch]) == 0):
                 # current chromosome has no associated fragment satisfying the given mappability threshold
                 # report this incident
-                print("ERROR - the chromosome " + ch + " has " + len(allFragsDic[ch]) + " valid fragments/bins and should be removed from the input fragment information !!! ")                
+                print("ERROR - the chromosome " + str(ch) + " has " + len(allFragsDic[ch]) + " valid fragments/bins and should be removed from the input fragment information !!! ")                
             else:
                 maxFrags[ch]=max([int(i)-resolution/2 for i in allFragsDic[ch]])
                 noOfFrags+=len(allFragsDic[ch])
@@ -831,7 +831,7 @@ def read_biases(infilename):
             if midPoint not in biasDic[chrom]:
                 biasDic[chrom][midPoint]=bias
     with open(logfile, 'a') as log:
-        log.write("Out of " + str(totalC) + " loci " +str(discardC) +" were discarded with biases not in range [0.5 2]\n\n" )
+        log.write("Out of " + str(totalC) + " loci " +str(discardC) +" were discarded with biases not in range [" + str(biasLowerBound) + "-" + str(biasUpperBound) + "]\n\n")
     endt = time.time()
     print("Bias file read. Time took %s" % (endt-startt))
     return biasDic # from read_biases
